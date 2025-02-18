@@ -1,0 +1,28 @@
+:root {
+  width: 500px;
+  height: 220px;
+}
+.container {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, auto);
+  border-radius: 1.75rem;
+  background-color: #212529;
+}
+.container .content {
+  background-color: #f8f9fa;
+  color: #343a40;
+  width: 130px;
+  height: 30px;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  border-radius: 0.6rem;
+}
+
+.container button:hover {
+  background-color: #343a40;
+  color: #f8f9fa;
+  cursor: pointer;
+}
