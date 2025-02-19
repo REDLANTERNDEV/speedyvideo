@@ -1,4 +1,4 @@
-:root {
+body {
   width: 500px;
   height: 220px;
 }
@@ -9,6 +9,8 @@
   grid-template-rows: repeat(2, auto);
   border-radius: 1.75rem;
   background-color: #212529;
+  align-items: center;
+  justify-items: center;
 }
 .container .content {
   background-color: #f8f9fa;
@@ -19,10 +21,44 @@
   display: flex;
   justify-content: center;
   border-radius: 0.6rem;
+  font-size: large;
+  font-weight: bolder;
 }
 
 .container button:hover {
   background-color: #343a40;
   color: #f8f9fa;
   cursor: pointer;
+}
+
+.center-logo {
+  width: 130px;
+  height: 70px;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 0 1rem;
+}
+
+.left-icon {
+  justify-self: start;
+}
+
+.center-logo {
+  justify-self: center;
+  transform: translateX(20px);
+}
+
+.right-icons {
+  justify-self: end;
+  display: flex;
+  gap: 1rem;
+}
+
+.footer {
+  justify-self: center;
+  padding-top: 1rem;
 }
