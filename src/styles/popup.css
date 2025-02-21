@@ -1,6 +1,20 @@
+:root {
+  --bg-color: #f8f9fa;
+  --text-color: #f8f9fa;
+  --container-bg: #343a40;
+  --button-hover-bg: #d5d9dc;
+}
+.dark-mode {
+  --bg-color: #212529;
+  --text-color: #343a40;
+  --container-bg: #f8f9fa;
+  --button-hover-bg: #343a40;
+}
+
 body {
   width: 500px;
   height: 220px;
+  background-color: var(--bg-color);
 }
 .container {
   display: grid;
@@ -8,13 +22,13 @@ body {
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(2, auto);
   border-radius: 1.75rem;
-  background-color: #212529;
+  background-color: var(--bg-color);
   align-items: center;
   justify-items: center;
 }
 .container .content {
-  background-color: #f8f9fa;
-  color: #343a40;
+  background-color: var(--container-bg);
+  color: var(--text-color);
   width: 130px;
   height: 30px;
   align-items: center;
@@ -26,8 +40,8 @@ body {
 }
 
 .container button:hover {
-  background-color: #343a40;
-  color: #f8f9fa;
+  background-color: var(--button-hover-bg);
+  color: var(--container-bg);
   cursor: pointer;
 }
 
