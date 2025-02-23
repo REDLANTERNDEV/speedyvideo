@@ -31,4 +31,11 @@ For bug reports, feature suggestions, or contributions, please submit a pull req
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the GNU General Public License v3.0.  
+For details, please see the [LICENSE](./LICENSE) file.
+
+## Trademark & Copyright
+
+**Logos and Visual Assets:**  
+All logos, icons, and other graphic elements included in this project are protected by separate copyright and trademark notices.  
+These assets are not covered under the GPL v3.0 license and may not be copied, modified, or redistributed without explicit permission.
