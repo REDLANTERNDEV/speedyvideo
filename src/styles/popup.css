@@ -48,6 +48,8 @@ body {
 .center-logo {
   width: 130px;
   height: 70px;
+  justify-self: center;
+  transform: translateX(20px);
 }
 
 .header {
@@ -61,11 +63,6 @@ body {
   justify-self: start;
 }
 
-.center-logo {
-  justify-self: center;
-  transform: translateX(20px);
-}
-
 .right-icons {
   justify-self: end;
   display: flex;
@@ -75,4 +72,12 @@ body {
 .footer {
   justify-self: center;
   padding-top: 1rem;
+}
+
+.themebutton {
+  border: none;
+  background: none;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
 }

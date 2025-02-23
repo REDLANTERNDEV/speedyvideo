@@ -1,5 +1,15 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
-
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/Inter.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/Inter-italic.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: italic;
+}
 :root {
   font-family: "Inter", sans-serif;
 }
@@ -10,13 +20,6 @@
 ::file-selector-button {
   margin: 0;
   padding: 0;
-}
-
-*,
-::after,
-::before,
-::backdrop,
-::file-selector-button {
   box-sizing: border-box;
   border: 0 solid;
 }

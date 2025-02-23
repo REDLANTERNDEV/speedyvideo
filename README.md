@@ -1,4 +1,4 @@
-# Video Speed Enhancer Browser Extension
+# SpeedyVideo (Video Speed Enhancer for Browsers)
 
 This extension helps you easily increase the playback speed of videos. The speed adjustment is optimized with flexible settings and a user-friendly interface.
 
