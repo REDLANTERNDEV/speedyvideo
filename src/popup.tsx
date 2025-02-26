@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { LogoSvg } from "./components/LogoSvg";
 import "./styles/popup.css";
+import SpeedButtons from "./components/SpeedButtons";
 
 const Popup = () => {
   const [darkMode, setDarkMode] = useState(true);
@@ -70,14 +71,7 @@ const Popup = () => {
         </div>
       </div>
 
-      <div className="container">
-        <button className="content">0.50</button>
-        <button className="content">1.0</button>
-        <button className="content">1.1</button>
-        <button className="content">1.5</button>
-        <button className="content">1.75</button>
-        <button className="content">2.5</button>
-      </div>
+      <SpeedButtons />
       <div className="footer">
         <a href="https://github.com/REDLANTERNDEV/speedyvideo" target="_blank">
           <svg

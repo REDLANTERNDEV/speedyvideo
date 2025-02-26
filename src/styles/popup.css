@@ -3,12 +3,16 @@
   --text-color: #f8f9fa;
   --container-bg: #343a40;
   --button-hover-bg: #d5d9dc;
+  --button-border: #6200ee;
+  --button-selected-background: #e9ca40;
 }
 .dark-mode {
   --bg-color: #212529;
   --text-color: #343a40;
   --container-bg: #f8f9fa;
   --button-hover-bg: #343a40;
+  --button-border: #6200ee;
+  --button-selected-background: #e9ca40;
 }
 
 body {
@@ -26,7 +30,7 @@ body {
   align-items: center;
   justify-items: center;
 }
-.container .content {
+.content {
   background-color: var(--container-bg);
   color: var(--text-color);
   width: 130px;
@@ -37,6 +41,11 @@ body {
   border-radius: 0.6rem;
   font-size: large;
   font-weight: bolder;
+}
+
+.container button.active {
+  border: 4px solid var(--button-border);
+  background-color: var(--button-selected-background);
 }
 
 .container button:hover {
