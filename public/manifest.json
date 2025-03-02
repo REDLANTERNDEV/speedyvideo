@@ -1,16 +1,18 @@
 {
-  "manifest_version": 3,
   "name": "SpeedyVideo",
   "version": "0.1.0",
+  "manifest_version": 3,
   "description": "video speed controller",
-  "permissions": ["activeTab"],
+  "permissions": ["storage", "tabs", "scripting"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": {

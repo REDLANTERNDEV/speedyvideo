@@ -1,8 +1,4 @@
-export interface LogoSvgProps {
-  fillColor: string;
-}
-
-export function LogoSvg({ fillColor }: Readonly<LogoSvgProps>) {
+export function LogoSvg({ fillColor }: { fillColor: string }) {
   return (
     <svg viewBox="0 0 670 381" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g clipPath="url(#clip0_10_193)">
