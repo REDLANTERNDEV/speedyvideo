@@ -1,0 +1,24 @@
+export default function ThemeButton({
+  onClick: toggleTheme,
+  fillColor,
+}: {
+  onClick: () => void;
+  fillColor?: string;
+}) {
+  return (
+    <button className="themebutton" onClick={toggleTheme}>
+      <svg
+        width="25"
+        height="25"
+        viewBox="0 0 25 25"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M12.5 25C19.4036 25 25 19.4036 25 12.5C25 5.59644 19.4036 0 12.5 0C5.59644 0 0 5.59644 0 12.5C0 19.4036 5.59644 25 12.5 25ZM12.5 22.5V2.5C18.0228 2.5 22.5 6.97715 22.5 12.5C22.5 18.0228 18.0228 22.5 12.5 22.5Z"
+          fill={fillColor}
+        />
+      </svg>
+    </button>
+  );
+}
