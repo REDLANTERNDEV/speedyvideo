@@ -1,3 +1,5 @@
+let mediaObserver: MutationObserver | null = null;
+
 function updateMediaPlaybackRate(speed: number): void {
   const mediaElements =
     document.querySelectorAll<HTMLMediaElement>("video, audio");
@@ -18,9 +20,11 @@ function initializePlaybackRate(speed: number): void {
 }
 
 function observeMediaChanges(speed: number): void {
-  let debounceTimer: number | undefined;
-
-  const observer = new MutationObserver(() => {
+  if (mediaObserver) {
+    mediaObserver.disconnect();
+  }
+  mediaObserver = new MutationObserver(() => {
+    let debounceTimer: number | undefined;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = window.setTimeout(() => {
       const mediaElements =
@@ -31,10 +35,9 @@ function observeMediaChanges(speed: number): void {
           console.log(`Updated media element to speed ${speed}`);
         }
       });
-    }, 300);
+    }, 100);
   });
-
-  observer.observe(document.body, { childList: true, subtree: true });
+  mediaObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 // Retrieve the saved playback speed and initialize settings
