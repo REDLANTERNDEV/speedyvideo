@@ -4,6 +4,7 @@ import "./styles/popup.css";
 import SpeedButtons from "./components/SpeedButtons";
 import PinButton from "./components/PinButton";
 import ThemeButton from "./components/ThemeButton";
+import EditButton from "./components/EditButton";
 
 const Popup = () => {
   const [darkMode, setDarkMode] = useState(true);
@@ -48,20 +49,7 @@ const Popup = () => {
         <div className="right-icons">
           <PinButton fillColor={darkMode ? "#FFFFFF" : "#000000"} />
 
-          <div style={{ cursor: "pointer" }}>
-            <svg
-              width="25"
-              height="23"
-              viewBox="0 0 25 23"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M17.4613 14.9732L18.8502 13.5843C19.0673 13.3673 19.4449 13.5192 19.4449 13.8317V20.1426C19.4449 21.2928 18.5117 22.226 17.3615 22.226H2.08338C0.93318 22.226 0 21.2928 0 20.1426V4.86447C0 3.71427 0.93318 2.78109 2.08338 2.78109H13.9543C14.2625 2.78109 14.4187 3.15437 14.2017 3.37572L12.8128 4.76464C12.7477 4.82975 12.6609 4.86447 12.5654 4.86447H2.08338V20.1426H17.3615V15.2163C17.3615 15.1251 17.3962 15.0383 17.4613 14.9732ZM24.2583 6.21433L12.8605 17.6121L8.93682 18.0462C7.79965 18.1721 6.83174 17.2128 6.95762 16.067L7.39165 12.1433L18.7895 0.745459C19.7834 -0.248486 21.3893 -0.248486 22.379 0.745459L24.254 2.6205C25.2479 3.61444 25.2479 5.22472 24.2583 6.21433ZM19.97 7.5555L17.4483 5.03375L9.38388 13.1025L9.06704 15.9368L11.9013 15.6199L19.97 7.5555ZM22.7826 4.09623L20.9076 2.22119C20.7296 2.04323 20.4388 2.04323 20.2652 2.22119L18.924 3.56236L21.4458 6.08412L22.787 4.74294C22.9606 4.56065 22.9606 4.27418 22.7826 4.09623Z"
-                fill={darkMode ? "#FFFFFF" : "#000000"}
-              />
-            </svg>
-          </div>
+          <EditButton fillColor={darkMode ? "#FFFFFF" : "#000000"} />
         </div>
       </div>
 

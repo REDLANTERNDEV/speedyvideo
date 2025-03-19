@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export function PinButton({ fillColor }: { fillColor: string }) {
+function PinButton({ fillColor }: { fillColor: string }) {
   const [isPinned, setIsPinned] = useState(false);
 
   useEffect(() => {

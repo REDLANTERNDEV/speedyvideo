@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 
-const speeds = [
-  { value: 0.5, label: "0.5" },
-  { value: 1.0, label: "1.0" },
-  { value: 1.1, label: "1.1" },
-  { value: 1.5, label: "1.5" },
-  { value: 2.5, label: "2.5" },
-  { value: 3.0, label: "3.0" },
+const speedList = [
+  { value: 0.5 },
+  { value: 1.0 },
+  { value: 1.1 },
+  { value: 1.5 },
+  { value: 2.5 },
+  { value: 3.0 },
 ];
 
 function SpeedButtons() {
   const [elementSpeed, setElementSpeed] = useState(1.0);
-
   useEffect(() => {
     chrome?.storage?.local?.get(["selectedSpeed"], (result) => {
       setElementSpeed(
@@ -31,16 +30,16 @@ function SpeedButtons() {
 
   return (
     <div className="container">
-      {speeds.map((speedObj, index) => (
+      {speedList.map((speedValue, index) => (
         <button
           key={index}
-          data-speed={speedObj.value}
+          data-speed={speedValue.value.toFixed(2)}
           className={`content ${
-            speedObj.value === elementSpeed ? "active" : ""
+            speedValue.value === elementSpeed ? "active" : ""
           }`}
-          onClick={() => handleClick(speedObj.value)}
+          onClick={() => handleClick(speedValue.value)}
         >
-          {speedObj.label}
+          {speedValue.value.toFixed(2)}
         </button>
       ))}
     </div>
