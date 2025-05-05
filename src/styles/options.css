@@ -1,0 +1,9 @@
+.options-body {
+  width: 500px;
+  height: 520px;
+  background-color: var(--bg-color);
+}
+
+input {
+  background-color: var(--container-bg);
+}

@@ -5,9 +5,11 @@ import SpeedButtons from "./components/SpeedButtons";
 import PinButton from "./components/PinButton";
 import ThemeButton from "./components/ThemeButton";
 import EditButton from "./components/EditButton";
+import Options from "./options";
 
 const Popup = () => {
   const [darkMode, setDarkMode] = useState(true);
+  const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -18,13 +20,24 @@ const Popup = () => {
   }, [darkMode]);
 
   useEffect(() => {
-    chrome.storage.local.get(["darkMode"], (result) => {
-      if (result.darkMode) {
-        setDarkMode(true);
-      } else {
-        setDarkMode(false);
-      }
-    });
+    try {
+      chrome.storage.local.get(["darkMode"], (result) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            "Error accessing local storage:",
+            chrome.runtime.lastError
+          );
+          return;
+        }
+        if (result.darkMode) {
+          setDarkMode(true);
+        } else {
+          setDarkMode(false);
+        }
+      });
+    } catch (error) {
+      console.error("Unexpected error while accessing local storage:", error);
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -36,6 +49,11 @@ const Popup = () => {
       chrome.storage.local.set({ darkMode: true });
     }
   };
+
+  if (showOptions) {
+    return <Options onClose={() => setShowOptions(false)} />;
+  }
+
   return (
     <div>
       <div className="header">
@@ -49,7 +67,10 @@ const Popup = () => {
         <div className="right-icons">
           <PinButton fillColor={darkMode ? "#FFFFFF" : "#000000"} />
 
-          <EditButton fillColor={darkMode ? "#FFFFFF" : "#000000"} />
+          <EditButton
+            onClick={() => setShowOptions(true)}
+            fillColor={darkMode ? "#FFFFFF" : "#000000"}
+          />
         </div>
       </div>
 

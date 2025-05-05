@@ -1,6 +1,18 @@
-function EditButton({ fillColor }: { fillColor: string }) {
+import React from "react";
+
+function EditButton({
+  fillColor,
+  onClick,
+}: Readonly<{
+  fillColor: string;
+  onClick: React.MouseEventHandler<HTMLButtonElement>;
+}>) {
   return (
-    <button className="themebutton" style={{ cursor: "pointer" }}>
+    <button
+      className="themebutton"
+      onClick={onClick}
+      style={{ cursor: "pointer" }}
+    >
       <svg
         width="25"
         height="23"

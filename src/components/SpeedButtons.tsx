@@ -1,22 +1,26 @@
 import { useState, useEffect } from "react";
 
-const speedList = [
-  { value: 0.5 },
-  { value: 1.0 },
-  { value: 1.1 },
-  { value: 1.5 },
-  { value: 2.5 },
-  { value: 3.0 },
-];
+const defaultSpeedList = [0.5, 1.0, 1.1, 1.5, 2.0, 2.5, 3.0, 8.0, 16.0];
 
 function SpeedButtons() {
   const [elementSpeed, setElementSpeed] = useState(1.0);
+  const [speedList, setSpeedList] = useState<number[]>(defaultSpeedList);
+
   useEffect(() => {
-    chrome?.storage?.local?.get(["selectedSpeed"], (result) => {
-      setElementSpeed(
-        result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0
-      );
-    });
+    chrome?.storage?.local?.get(
+      ["selectedSpeed", "defaultSpeedList"],
+      (result) => {
+        setElementSpeed(
+          result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0
+        );
+        setSpeedList(
+          Array.isArray(result.defaultSpeedList) &&
+            result.defaultSpeedList.length > 0
+            ? result.defaultSpeedList
+            : defaultSpeedList
+        );
+      }
+    );
   }, []);
 
   useEffect(() => {
@@ -28,18 +32,20 @@ function SpeedButtons() {
     console.log("Tıklanan hız:", speed);
   };
 
+  useEffect(() => {
+    chrome?.storage?.local?.set({ defaultSpeedList: speedList });
+  }, [speedList]);
+
   return (
     <div className="container">
-      {speedList.map((speedValue, index) => (
+      {speedList.map((speedValue) => (
         <button
-          key={index}
-          data-speed={speedValue.value.toFixed(2)}
-          className={`content ${
-            speedValue.value === elementSpeed ? "active" : ""
-          }`}
-          onClick={() => handleClick(speedValue.value)}
+          key={speedValue}
+          data-speed={speedValue.toFixed(2)}
+          className={`content ${speedValue === elementSpeed ? "active" : ""}`}
+          onClick={() => handleClick(speedValue)}
         >
-          {speedValue.value.toFixed(2)}
+          {speedValue.toFixed(2)}
         </button>
       ))}
     </div>
