@@ -1,9 +1,77 @@
 .options-body {
   width: 500px;
-  height: 520px;
+  height: 320px;
   background-color: var(--bg-color);
+}
+
+.options-container {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, auto);
+  border-radius: 1.75rem;
+  background-color: var(--bg-color);
+  align-items: center;
+  justify-items: center;
+}
+
+.options-content {
+  background-color: var(--container-bg);
+  color: var(--text-color);
+  width: 130px;
+  height: 30px;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  border-radius: 0.6rem;
+  font-size: large;
+  font-weight: bolder;
+  text-align: center;
 }
 
 input {
   background-color: var(--container-bg);
+}
+
+.options-logo {
+  width: 130px;
+  height: 70px;
+  justify-self: center;
+  /* transform: translateX(20px); */
+}
+
+.options-header {
+  /* display: grid;
+  grid-template-columns: auto 1fr auto; */
+  align-items: center;
+  padding: 0 1rem;
+}
+
+.options-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  padding: 1.3rem 0.8rem 1rem 0;
+  justify-content: flex-end;
+}
+
+.options-buttons button {
+  color: var(--text-color);
+  width: 130px;
+  height: 30px;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  border-radius: 0.6rem;
+  font-size: large;
+  font-weight: bolder;
+  cursor: pointer;
+}
+
+.options-save-button {
+  background-color: rgb(0, 222, 0);
+}
+
+.options-cancel-button {
+  background-color: rgb(222, 0, 0);
 }

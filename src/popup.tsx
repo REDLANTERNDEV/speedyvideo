@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { LogoSvg } from "./components/LogoSvg";
 import "./styles/popup.css";
 import SpeedButtons from "./components/SpeedButtons";
@@ -6,49 +6,11 @@ import PinButton from "./components/PinButton";
 import ThemeButton from "./components/ThemeButton";
 import EditButton from "./components/EditButton";
 import Options from "./options";
+import { useTheme } from "./context/ThemeContext";
 
 const Popup = () => {
-  const [darkMode, setDarkMode] = useState(true);
+  const { darkMode, toggleTheme } = useTheme();
   const [showOptions, setShowOptions] = useState(false);
-
-  useEffect(() => {
-    if (darkMode) {
-      document.body.classList.add("dark-mode");
-    } else {
-      document.body.classList.remove("dark-mode");
-    }
-  }, [darkMode]);
-
-  useEffect(() => {
-    try {
-      chrome.storage.local.get(["darkMode"], (result) => {
-        if (chrome.runtime.lastError) {
-          console.error(
-            "Error accessing local storage:",
-            chrome.runtime.lastError
-          );
-          return;
-        }
-        if (result.darkMode) {
-          setDarkMode(true);
-        } else {
-          setDarkMode(false);
-        }
-      });
-    } catch (error) {
-      console.error("Unexpected error while accessing local storage:", error);
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    if (darkMode) {
-      setDarkMode(false);
-      chrome.storage.local.set({ darkMode: false });
-    } else {
-      setDarkMode(true);
-      chrome.storage.local.set({ darkMode: true });
-    }
-  };
 
   if (showOptions) {
     return <Options onClose={() => setShowOptions(false)} />;
@@ -94,4 +56,5 @@ const Popup = () => {
     </div>
   );
 };
+
 export default Popup;
