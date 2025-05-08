@@ -52,6 +52,7 @@ body {
   background-color: var(--button-hover-bg);
   color: var(--container-bg);
   cursor: pointer;
+  border: 3px solid var(--container-bg);
 }
 
 .center-logo {
