@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogoSvg } from "./components/LogoSvg";
 import "./styles/popup.css";
 import SpeedButtons from "./components/SpeedButtons";
@@ -11,6 +11,89 @@ import { useTheme } from "./context/ThemeContext";
 const Popup = () => {
   const { darkMode, toggleTheme } = useTheme();
   const [showOptions, setShowOptions] = useState(false);
+  const [elementSpeed, setElementSpeed] = useState(1.0);
+  const [isPinned, setIsPinned] = useState(false);
+  const [tabId, setTabId] = useState<number | null>(null);
+
+  useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTabId = tabs[0]?.id;
+      if (currentTabId) {
+        setTabId(currentTabId);
+        chrome.storage.local.get(
+          [`pinnedSpeed_${currentTabId}`, "selectedSpeed"],
+          (result) => {
+            if (!result.selectedSpeed) {
+              chrome.storage.local.set({ selectedSpeed: "1.0" });
+            }
+            if (result[`pinnedSpeed_${currentTabId}`] !== undefined) {
+              setElementSpeed(
+                parseFloat(result[`pinnedSpeed_${currentTabId}`])
+              );
+              setIsPinned(true);
+            } else {
+              setElementSpeed(
+                result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0
+              );
+              setIsPinned(false);
+            }
+          }
+        );
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (tabId !== null && elementSpeed) {
+      chrome.tabs.sendMessage(tabId, {
+        type: "UPDATE_SPEED",
+        speed: elementSpeed,
+      });
+    }
+  }, [elementSpeed, tabId]);
+
+  useEffect(() => {
+    if (!isPinned && tabId !== null) {
+      chrome.storage.local.get(["selectedSpeed"], (result) => {
+        setElementSpeed(
+          result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0
+        );
+      });
+    }
+  }, [isPinned, tabId]);
+
+  useEffect(() => {
+    if (!isPinned && tabId !== null) {
+      chrome.storage.local.get(["selectedSpeed"], (result) => {
+        const globalSpeed = result.selectedSpeed
+          ? parseFloat(result.selectedSpeed)
+          : 1.0;
+        chrome.tabs.sendMessage(tabId, {
+          type: "UPDATE_SPEED",
+          speed: globalSpeed,
+        });
+      });
+    }
+  }, [isPinned, tabId]);
+
+  useEffect(() => {
+    if (tabId !== null) {
+      chrome.storage.local.get(
+        [`pinnedSpeed_${tabId}`, "selectedSpeed"],
+        (result) => {
+          let speed;
+          if (result[`pinnedSpeed_${tabId}`] !== undefined) {
+            speed = parseFloat(result[`pinnedSpeed_${tabId}`]);
+          } else {
+            speed = result.selectedSpeed
+              ? parseFloat(result.selectedSpeed)
+              : 1.0;
+          }
+          chrome.tabs.sendMessage(tabId, { type: "UPDATE_SPEED", speed });
+        }
+      );
+    }
+  }, [tabId, isPinned]);
 
   if (showOptions) {
     return <Options onClose={() => setShowOptions(false)} />;
@@ -27,16 +110,24 @@ const Popup = () => {
           <LogoSvg fillColor={darkMode ? "#FFFFFF" : "#000000"} />
         </div>
         <div className="right-icons">
-          <PinButton fillColor={darkMode ? "#FFFFFF" : "#000000"} />
-
+          <PinButton
+            fillColor={darkMode ? "#FFFFFF" : "#000000"}
+            selectedSpeed={elementSpeed}
+            setIsPinned={setIsPinned}
+            setTabId={setTabId}
+          />
           <EditButton
             onClick={() => setShowOptions(true)}
             fillColor={darkMode ? "#FFFFFF" : "#000000"}
           />
         </div>
       </div>
-
-      <SpeedButtons />
+      <SpeedButtons
+        elementSpeed={elementSpeed}
+        setElementSpeed={setElementSpeed}
+        isPinned={isPinned}
+        tabId={tabId}
+      />
       <div className="footer">
         <a href="https://github.com/REDLANTERNDEV/speedyvideo" target="_blank">
           <svg

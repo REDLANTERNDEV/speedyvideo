@@ -1,36 +1,73 @@
 import { useState, useEffect } from "react";
 
-function PinButton({ fillColor }: { fillColor: string }) {
-  const [isPinned, setIsPinned] = useState(false);
+type PinButtonProps = Readonly<{
+  fillColor: string;
+  selectedSpeed: number;
+  setIsPinned: (v: boolean) => void;
+  setTabId: (id: number | null) => void;
+}>;
+
+function PinButton({
+  fillColor,
+  selectedSpeed,
+  setIsPinned,
+  setTabId,
+}: PinButtonProps) {
+  const [localIsPinned, setLocalIsPinned] = useState<boolean>(false);
+  const [localTabId, setLocalTabId] = useState<number | null>(null);
 
   useEffect(() => {
-    const storedPinStatus = localStorage.getItem("PinStatus");
-    if (storedPinStatus !== null) {
-      setIsPinned(storedPinStatus === "true");
+    if (window.chrome && chrome.tabs) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]?.id) {
+          setLocalTabId(tabs[0].id);
+          setTabId(tabs[0].id);
+        }
+      });
     }
   }, []);
 
+  useEffect(() => {
+    if (localTabId !== null && window.chrome && chrome.storage) {
+      chrome.storage.local.get([`pinnedSpeed_${localTabId}`], (result) => {
+        const pinned = !!result[`pinnedSpeed_${localTabId}`];
+        setLocalIsPinned(pinned);
+        setIsPinned(pinned);
+      });
+    }
+  }, [localTabId]);
+
   const handlePinClick = () => {
-    const newPinStatus = !isPinned;
-    setIsPinned(newPinStatus);
-    localStorage.setItem("PinStatus", newPinStatus.toString());
-    console.log("Value is set:", newPinStatus);
+    if (localTabId === null) return;
+    if (!localIsPinned) {
+      chrome.storage.local.set(
+        { [`pinnedSpeed_${localTabId}`]: selectedSpeed },
+        () => {
+          setLocalIsPinned(true);
+          setIsPinned(true);
+        }
+      );
+    } else {
+      chrome.storage.local.remove([`pinnedSpeed_${localTabId}`], () => {
+        setLocalIsPinned(false);
+        setIsPinned(false);
+      });
+    }
   };
+
   return (
-    <div style={{ cursor: "pointer" }} onClick={handlePinClick}>
-      <svg
-        width="25"
-        height="25"
-        viewBox="0 0 25 25"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
+    <button
+      onClick={handlePinClick}
+      style={{ background: "none", border: "none", cursor: "pointer" }}
+    >
+      <svg width="24" height="24" viewBox="0 0 24 24">
         <path
+          fill={localIsPinned ? "red" : fillColor}
           d="M24.0534 6.4685L18.5323 0.947364C17.9533 0.368639 17.1765 0.0308371 16.3584 0.00200909C15.5403 -0.0268189 14.7416 0.255469 14.1233 0.792006C13.5051 1.32854 13.1131 2.07946 13.0264 2.89347C12.9397 3.70749 13.1647 4.52412 13.6561 5.17884L13.4002 5.46704L8.31378 7.70153L6.09434 6.5022C5.85206 6.37166 5.57352 6.32458 5.3018 6.36825C5.03008 6.41192 4.78031 6.54389 4.59113 6.74377L2.42721 9.03567C2.20236 9.27147 2.07901 9.58609 2.08367 9.91188C2.08834 10.2377 2.22065 10.5486 2.45216 10.7779L7.74829 16.074L0 23.8222V25.0008H1.17855L8.92679 17.2525L14.1987 22.5244C14.4268 22.7538 14.7351 22.8856 15.0585 22.8918C15.3819 22.8981 15.6951 22.7783 15.9319 22.5579L18.2458 20.4157C18.4501 20.2268 18.5854 19.9752 18.6305 19.7007C18.6755 19.4262 18.6276 19.1446 18.4944 18.9004L17.2785 16.6681L19.4729 11.9535L19.9209 11.4161C20.585 11.8761 21.3972 12.0711 22.1979 11.9627C22.9985 11.8543 23.7296 11.4504 24.2475 10.8303C24.7655 10.2102 25.0327 9.41885 24.9968 8.61173C24.9609 7.80461 24.6244 7.04011 24.0534 6.4685ZM22.8748 9.86613C22.5805 10.1603 22.1815 10.3256 21.7653 10.3256C21.3492 10.3256 20.9502 10.1603 20.6559 9.86613L19.7764 8.9866L18.0534 11.0533L15.4127 16.7272L16.8756 19.4131L15.0938 21.0626L3.91688 9.88566L5.58364 8.12046L8.23842 9.55507L14.4047 6.84617L15.9244 5.13447L15.1349 4.34479C14.8477 4.04909 14.6885 3.65229 14.6915 3.24013C14.6945 2.82797 14.8596 2.43355 15.1511 2.1421C15.4425 1.85065 15.8369 1.68558 16.2491 1.68255C16.6613 1.67952 17.0581 1.83878 17.3538 2.12592L22.8749 7.64705C23.1691 7.94131 23.3344 8.34038 23.3344 8.75648C23.3344 9.17259 23.1691 9.57166 22.8749 9.86592L22.8748 9.86613Z"
-          fill={isPinned ? "red" : fillColor}
         />
       </svg>
-    </div>
+    </button>
   );
 }
+
 export default PinButton;

@@ -21,7 +21,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         { type: "UPDATE_SPEED", speed },
         (response) => {
           if (chrome.runtime.lastError) {
-            const errorMessage = chrome.runtime.lastError.message || "";
+            const errorMessage = chrome.runtime.lastError.message ?? "";
             // Ignore error messages for cases when no receiver exists
             // or when the message port closed before a response was received.
             if (
@@ -62,7 +62,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
             { type: "UPDATE_SPEED", speed: newSpeed },
             (response) => {
               if (chrome.runtime.lastError) {
-                const errorMessage = chrome.runtime.lastError.message || "";
+                const errorMessage = chrome.runtime.lastError.message ?? "";
                 if (
                   !errorMessage.includes("Receiving end does not exist") &&
                   !errorMessage.includes(
@@ -87,22 +87,3 @@ chrome.storage.onChanged.addListener((changes, area) => {
     });
   }
 });
-
-// chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-//   if (changeInfo.status === "complete" && tab.url) {
-//     chrome.tabs.sendMessage(
-//       tabId,
-//       { type: "TAB_ID_ONLY", tabId },
-//       (response) => {
-//         if (chrome.runtime.lastError) {
-//           console.error(
-//             "Error sending tabId to tab:",
-//             chrome.runtime.lastError.message
-//           );
-//         } else {
-//           console.log("Tab ID sent to tab successfully.", response);
-//         }
-//       }
-//     );
-//   }
-// });

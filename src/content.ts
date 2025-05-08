@@ -26,7 +26,7 @@ function observeMediaChanges(speed: number): void {
   mediaObserver = new MutationObserver(() => {
     let debounceTimer: number | undefined;
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = window.setTimeout(() => {
+    window.setTimeout(() => {
       const mediaElements =
         document.querySelectorAll<HTMLMediaElement>("video, audio");
       mediaElements.forEach((media) => {
@@ -40,17 +40,16 @@ function observeMediaChanges(speed: number): void {
   mediaObserver.observe(document.body, { childList: true, subtree: true });
 }
 
-// Retrieve the saved playback speed and initialize settings
 chrome.storage.local.get(["selectedSpeed"], (result) => {
   const speed = result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1;
   initializePlaybackRate(speed);
   observeMediaChanges(speed);
 });
 
-// Listen for messages with speed updates
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === "UPDATE_SPEED") {
-    initializePlaybackRate(message.speed);
-    observeMediaChanges(message.speed);
+    const speed = message.speed ?? 1;
+    initializePlaybackRate(speed);
+    observeMediaChanges(speed);
   }
 });
