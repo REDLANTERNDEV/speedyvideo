@@ -51,7 +51,9 @@ function SpeedButtons({
   }, [speedList]);
 
   // Eğer elementSpeed, speedList içinde yoksa hiçbir buton seçili olmasın
-  const isSpeedInList = speedList.includes(elementSpeed);
+  const isSpeedInList = speedList.some(
+    (speed) => speed.toFixed(2) === elementSpeed.toFixed(2)
+  );
 
   return (
     <div className="container">
@@ -60,7 +62,9 @@ function SpeedButtons({
           key={speedValue}
           data-speed={speedValue.toFixed(2)}
           className={`content ${
-            isSpeedInList && speedValue === elementSpeed ? "active" : ""
+            isSpeedInList && speedValue.toFixed(2) === elementSpeed.toFixed(2)
+              ? "active"
+              : ""
           }`}
           onClick={() => handleClick(speedValue)}
         >
