@@ -44,6 +44,23 @@ const Popup = () => {
   }, []);
 
   useEffect(() => {
+    if (tabId !== null) {
+      chrome.storage.local.get(
+        [`pinnedSpeed_${tabId}`, "selectedSpeed"],
+        (result) => {
+          if (isPinned && result[`pinnedSpeed_${tabId}`] !== undefined) {
+            setElementSpeed(parseFloat(result[`pinnedSpeed_${tabId}`]));
+          } else {
+            setElementSpeed(
+              result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0
+            );
+          }
+        }
+      );
+    }
+  }, [tabId, isPinned]);
+
+  useEffect(() => {
     if (tabId !== null && elementSpeed) {
       chrome.tabs.sendMessage(tabId, {
         type: "UPDATE_SPEED",
@@ -51,49 +68,6 @@ const Popup = () => {
       });
     }
   }, [elementSpeed, tabId]);
-
-  useEffect(() => {
-    if (!isPinned && tabId !== null) {
-      chrome.storage.local.get(["selectedSpeed"], (result) => {
-        setElementSpeed(
-          result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0
-        );
-      });
-    }
-  }, [isPinned, tabId]);
-
-  useEffect(() => {
-    if (!isPinned && tabId !== null) {
-      chrome.storage.local.get(["selectedSpeed"], (result) => {
-        const globalSpeed = result.selectedSpeed
-          ? parseFloat(result.selectedSpeed)
-          : 1.0;
-        chrome.tabs.sendMessage(tabId, {
-          type: "UPDATE_SPEED",
-          speed: globalSpeed,
-        });
-      });
-    }
-  }, [isPinned, tabId]);
-
-  useEffect(() => {
-    if (tabId !== null) {
-      chrome.storage.local.get(
-        [`pinnedSpeed_${tabId}`, "selectedSpeed"],
-        (result) => {
-          let speed;
-          if (result[`pinnedSpeed_${tabId}`] !== undefined) {
-            speed = parseFloat(result[`pinnedSpeed_${tabId}`]);
-          } else {
-            speed = result.selectedSpeed
-              ? parseFloat(result.selectedSpeed)
-              : 1.0;
-          }
-          chrome.tabs.sendMessage(tabId, { type: "UPDATE_SPEED", speed });
-        }
-      );
-    }
-  }, [tabId, isPinned]);
 
   if (showOptions) {
     return <Options onClose={() => setShowOptions(false)} />;

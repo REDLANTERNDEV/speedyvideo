@@ -50,7 +50,6 @@ function SpeedButtons({
     chrome?.storage?.local?.set({ defaultSpeedList: speedList });
   }, [speedList]);
 
-  // Eğer elementSpeed, speedList içinde yoksa hiçbir buton seçili olmasın
   const isSpeedInList = speedList.some(
     (speed) => speed.toFixed(2) === elementSpeed.toFixed(2)
   );

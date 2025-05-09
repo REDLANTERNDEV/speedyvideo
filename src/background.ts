@@ -97,3 +97,20 @@ chrome.storage.onChanged.addListener((changes, area) => {
     });
   }
 });
+
+// Remove pinned speed when a tab is closed
+chrome.tabs.onRemoved.addListener((tabId, _removeInfo) => {
+  const key = `pinnedSpeed_${tabId}`;
+  chrome.storage.local.remove([key], () => {
+    if (chrome.runtime.lastError) {
+      console.warn(
+        `[SpeedyVideo Background] Error removing ${key}:`,
+        chrome.runtime.lastError.message
+      );
+    } else {
+      console.log(
+        `[SpeedyVideo Background] Removed ${key} from storage (tab closed).`
+      );
+    }
+  });
+});
