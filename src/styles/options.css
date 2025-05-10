@@ -29,6 +29,12 @@
   text-align: center;
 }
 
+.options-content:focus {
+  border: 2px solid var(--button-border);
+  outline: none;
+  box-shadow: 0 0 0 4px var(--button-border); /* Dışına kırmızı bir parlama efekti */
+}
+
 input {
   background-color: var(--container-bg);
 }
@@ -71,6 +77,7 @@ input {
 }
 
 .options-save-button {
+  color: #f8f9fa !important;
   background-color: #3d733f;
 }
 .options-save-button:hover {
@@ -78,6 +85,7 @@ input {
 }
 
 .options-cancel-button {
+  color: #f8f9fa !important;
   background-color: #8c3133;
 }
 .options-cancel-button:hover {
