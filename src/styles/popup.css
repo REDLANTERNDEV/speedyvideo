@@ -59,7 +59,7 @@ body {
   width: 130px;
   height: 70px;
   justify-self: center;
-  transform: translateX(20px);
+  transform: none;
 }
 
 .header {
@@ -67,9 +67,12 @@ body {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   padding: 0 1rem;
+  position: relative;
 }
 
-.left-icon {
+.left-icons {
+  display: flex;
+  gap: 0.5rem;
   justify-self: start;
 }
 
@@ -77,6 +80,12 @@ body {
   justify-self: end;
   display: flex;
   gap: 1rem;
+}
+
+/* Add spacing to left and right of logo */
+.header .center-logo {
+  margin-left: 32px;
+  margin-right: 32px;
 }
 
 .footer {

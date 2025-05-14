@@ -7,6 +7,7 @@ import ThemeButton from "./components/ThemeButton";
 import EditButton from "./components/EditButton";
 import Options from "./options";
 import { useTheme } from "./context/ThemeContext";
+import DisableButton from "./components/DisableButton";
 
 const Popup = () => {
   const { darkMode, toggleTheme } = useTheme();
@@ -14,6 +15,7 @@ const Popup = () => {
   const [elementSpeed, setElementSpeed] = useState(1.0);
   const [isPinned, setIsPinned] = useState(false);
   const [tabId, setTabId] = useState<number | null>(null);
+  const [isDisabled, setIsDisabled] = useState(false);
 
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -44,6 +46,13 @@ const Popup = () => {
   }, []);
 
   useEffect(() => {
+    // Check global disable state on mount
+    chrome.storage.local.get(["extensionState"], (result) => {
+      setIsDisabled(result.extensionState === false);
+    });
+  }, []);
+
+  useEffect(() => {
     if (tabId !== null) {
       chrome.storage.local.get(
         [`pinnedSpeed_${tabId}`, "selectedSpeed"],
@@ -61,25 +70,53 @@ const Popup = () => {
   }, [tabId, isPinned]);
 
   useEffect(() => {
-    if (tabId !== null && elementSpeed) {
+    if (tabId !== null && elementSpeed && !isDisabled) {
       chrome.tabs.sendMessage(tabId, {
         type: "UPDATE_SPEED",
         speed: elementSpeed,
       });
     }
-  }, [elementSpeed, tabId]);
+    if (tabId !== null && isDisabled) {
+      chrome.tabs.sendMessage(tabId, {
+        type: "DISABLE_SPEEDYVIDEO",
+      });
+    }
+  }, [elementSpeed, tabId, isDisabled]);
 
   if (showOptions) {
     return <Options onClose={() => setShowOptions(false)} />;
   }
 
+  const handleDisable = () => {
+    const newDisabled = !isDisabled;
+    setIsDisabled(newDisabled);
+    chrome.runtime.sendMessage({
+      type: newDisabled
+        ? "DISABLE_SPEEDYVIDEO_GLOBAL"
+        : "ENABLE_SPEEDYVIDEO_GLOBAL",
+    });
+    chrome.storage.local.set({ extensionState: !newDisabled });
+    if (tabId !== null) {
+      chrome.tabs.sendMessage(tabId, {
+        type: newDisabled ? "DISABLE_SPEEDYVIDEO" : "ENABLE_SPEEDYVIDEO",
+      });
+    }
+  };
+
   return (
     <div>
       <div className="header">
-        <ThemeButton
-          fillColor={darkMode ? "#FFFFFF" : "#000000"}
-          onClick={toggleTheme}
-        />
+        <div className="left-icons">
+          <DisableButton
+            fillColor={darkMode ? "#FFFFFF" : "#000000"}
+            onClick={handleDisable}
+            isDisabled={isDisabled}
+          />
+          <ThemeButton
+            fillColor={darkMode ? "#FFFFFF" : "#000000"}
+            onClick={toggleTheme}
+          />
+        </div>
         <div className="center-logo">
           <LogoSvg fillColor={darkMode ? "#FFFFFF" : "#000000"} />
         </div>
@@ -98,7 +135,7 @@ const Popup = () => {
       </div>
       <SpeedButtons
         elementSpeed={elementSpeed}
-        setElementSpeed={setElementSpeed}
+        setElementSpeed={isDisabled ? () => {} : setElementSpeed}
         isPinned={isPinned}
         tabId={tabId}
       />

@@ -3,6 +3,45 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log("[SpeedyVideo Background] Service worker installed.");
 });
 
+// Listen for disable/enable messages from popup
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === "DISABLE_SPEEDYVIDEO_GLOBAL") {
+    chrome.storage.local.set({ extensionState: false }, () => {
+      // Disable on all open tabs
+      chrome.tabs.query({}, (tabs) => {
+        tabs.forEach((tab) => {
+          if (
+            tab.id !== undefined &&
+            tab.url &&
+            (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
+          ) {
+            chrome.tabs.sendMessage(tab.id, { type: "DISABLE_SPEEDYVIDEO" });
+          }
+        });
+      });
+      sendResponse({ status: "disabled globally" });
+    });
+    return true;
+  } else if (message.type === "ENABLE_SPEEDYVIDEO_GLOBAL") {
+    chrome.storage.local.set({ extensionState: true }, () => {
+      // Enable on all open tabs
+      chrome.tabs.query({}, (tabs) => {
+        tabs.forEach((tab) => {
+          if (
+            tab.id !== undefined &&
+            tab.url &&
+            (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
+          ) {
+            chrome.tabs.sendMessage(tab.id, { type: "ENABLE_SPEEDYVIDEO" });
+          }
+        });
+      });
+      sendResponse({ status: "enabled globally" });
+    });
+    return true;
+  }
+});
+
 // When a tab is updated and finished loading, get the saved speed and send a message
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Process only if the tab URL starts with http:// or https://
@@ -11,38 +50,44 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     tab.url &&
     (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
   ) {
-    chrome.storage.local.get(["selectedSpeed"], (result) => {
-      const speed = result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1;
-      console.log(
-        `[SpeedyVideo Background] Tab updated - ID: ${tabId}, URL: ${tab.url}, attempting to set speed to ${speed}`
-      );
-      chrome.tabs.sendMessage(
-        tabId,
-        { type: "UPDATE_SPEED", speed },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            const errorMessage = chrome.runtime.lastError.message ?? "";
-            // Ignore error messages for cases when no receiver exists
-            // or when the message port closed before a response was received.
-            if (
-              !errorMessage.includes("Receiving end does not exist") &&
-              !errorMessage.includes(
-                "The message port closed before a response was received"
-              )
-            ) {
-              console.error(
-                `[SpeedyVideo Background] Error sending message to tab ${tabId}:`,
-                errorMessage
+    chrome.storage.local.get(["extensionState", "selectedSpeed"], (result) => {
+      if (result.extensionState === false) {
+        chrome.tabs.sendMessage(tabId, { type: "DISABLE_SPEEDYVIDEO" });
+      } else {
+        const speed = result.selectedSpeed
+          ? parseFloat(result.selectedSpeed)
+          : 1;
+        console.log(
+          `[SpeedyVideo Background] Tab updated - ID: ${tabId}, URL: ${tab.url}, attempting to set speed to ${speed}`
+        );
+        chrome.tabs.sendMessage(
+          tabId,
+          { type: "UPDATE_SPEED", speed },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              const errorMessage = chrome.runtime.lastError.message ?? "";
+              // Ignore error messages for cases when no receiver exists
+              // or when the message port closed before a response was received.
+              if (
+                !errorMessage.includes("Receiving end does not exist") &&
+                !errorMessage.includes(
+                  "The message port closed before a response was received"
+                )
+              ) {
+                console.error(
+                  `[SpeedyVideo Background] Error sending message to tab ${tabId}:`,
+                  errorMessage
+                );
+              }
+            } else {
+              console.log(
+                `[SpeedyVideo Background] Message sent to tab ${tabId} successfully. Response:`,
+                response
               );
             }
-          } else {
-            console.log(
-              `[SpeedyVideo Background] Message sent to tab ${tabId} successfully. Response:`,
-              response
-            );
           }
-        }
-      );
+        );
+      }
     });
   }
 });
