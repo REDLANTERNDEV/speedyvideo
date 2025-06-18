@@ -3,7 +3,11 @@ import "./styles/speedSettings.css";
 import { LogoSvg } from "./components/LogoSvg";
 import { useTheme } from "./context/ThemeContext";
 
-export default function SpeedSettings({ onClose }: { readonly onClose: () => void }) {
+export default function SpeedSettings({
+  onClose,
+}: {
+  readonly onClose: () => void;
+}) {
   const [speedList, setSpeedList] = useState<string[]>([]);
   const { darkMode } = useTheme();
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -20,7 +24,7 @@ export default function SpeedSettings({ onClose }: { readonly onClose: () => voi
     }
     // else: skip storage access if not available
   }, []);
-  
+
   // Save the current speedList to chrome.storage.local
   const handleSave = () => {
     // Convert strings to numbers, apply min/max limits
@@ -69,9 +73,13 @@ export default function SpeedSettings({ onClose }: { readonly onClose: () => voi
         <div className="speed-settings-logo">
           <LogoSvg fillColor={darkMode ? "#FFFFFF" : "#000000"} />
         </div>
-      </div>      <div className="speed-settings-container">
+      </div>{" "}
+      <div className="speed-settings-container">
         {speedList.map((speed, index) => (
-          <div key={`speed-${index}-${speedList.length}`} className="speed-settings-row">
+          <div
+            key={`speed-${index}-${speedList.length}`}
+            className="speed-settings-row"
+          >
             <input
               ref={(el) => {
                 inputRefs.current[index] = el;

@@ -6,7 +6,8 @@ function EditButton({
 }: Readonly<{
   fillColor: string;
   onClick: React.MouseEventHandler<HTMLButtonElement>;
-}>) {  return (
+}>) {
+  return (
     <button
       className="themebutton"
       onClick={onClick}
