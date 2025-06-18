@@ -16,15 +16,17 @@ const Popup = () => {
   const [isPinned, setIsPinned] = useState(false);
   const [tabId, setTabId] = useState<number | null>(null);
   const [isDisabled, setIsDisabled] = useState(false);
-
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const currentTabId = tabs[0]?.id;
       if (currentTabId) {
         setTabId(currentTabId);
         chrome.storage.local.get(
-          [`pinnedSpeed_${currentTabId}`, "selectedSpeed"],
+          [`pinnedSpeed_${currentTabId}`, "selectedSpeed", "extensionState"],
           (result) => {
+            // Set extension state first
+            setIsDisabled(result.extensionState === false);
+
             if (!result.selectedSpeed) {
               chrome.storage.local.set({ selectedSpeed: "1.0" });
             }
@@ -46,13 +48,6 @@ const Popup = () => {
   }, []);
 
   useEffect(() => {
-    // Check global disable state on mount
-    chrome.storage.local.get(["extensionState"], (result) => {
-      setIsDisabled(result.extensionState === false);
-    });
-  }, []);
-
-  useEffect(() => {
     if (tabId !== null) {
       chrome.storage.local.get(
         [`pinnedSpeed_${tabId}`, "selectedSpeed"],
@@ -68,14 +63,15 @@ const Popup = () => {
       );
     }
   }, [tabId, isPinned]);
-
   useEffect(() => {
+    // Only send speed updates when extension is enabled and we have valid state
     if (tabId !== null && elementSpeed && !isDisabled) {
       chrome.tabs.sendMessage(tabId, {
         type: "UPDATE_SPEED",
         speed: elementSpeed,
       });
     }
+    // When extension is disabled, ensure content script knows
     if (tabId !== null && isDisabled) {
       chrome.tabs.sendMessage(tabId, {
         type: "DISABLE_SPEEDYVIDEO",
@@ -86,20 +82,83 @@ const Popup = () => {
   if (showOptions) {
     return <Options onClose={() => setShowOptions(false)} />;
   }
-
   const handleDisable = () => {
     const newDisabled = !isDisabled;
     setIsDisabled(newDisabled);
+
+    // Update global state
+    chrome.storage.local.set({ extensionState: !newDisabled });
+
+    // Send appropriate message to background script
     chrome.runtime.sendMessage({
       type: newDisabled
         ? "DISABLE_SPEEDYVIDEO_GLOBAL"
         : "ENABLE_SPEEDYVIDEO_GLOBAL",
     });
-    chrome.storage.local.set({ extensionState: !newDisabled });
+
+    // Send message to current tab with callback to ensure it's received
     if (tabId !== null) {
-      chrome.tabs.sendMessage(tabId, {
-        type: newDisabled ? "DISABLE_SPEEDYVIDEO" : "ENABLE_SPEEDYVIDEO",
+      const messageType = newDisabled
+        ? "DISABLE_SPEEDYVIDEO"
+        : "ENABLE_SPEEDYVIDEO";
+      chrome.tabs.sendMessage(tabId, { type: messageType }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn(
+            "[SpeedyVideo] Error sending message to tab:",
+            chrome.runtime.lastError.message
+          );
+        } else {
+          console.log(
+            `[SpeedyVideo] ${messageType} sent successfully:`,
+            response
+          );
+
+          // If we're enabling and have a selected speed, ensure it gets applied
+          if (!newDisabled && elementSpeed !== 1.0) {
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabId, {
+                type: "UPDATE_SPEED",
+                speed: elementSpeed,
+              });
+            }, 100); // Small delay to ensure enable message is processed first
+          }
+        }
       });
+    }
+  };
+
+  const handleEnable = () => {
+    if (!isDisabled) return; // Already enabled
+
+    setIsDisabled(false);
+
+    // Update global state
+    chrome.storage.local.set({ extensionState: true });
+
+    // Send enable message to background script
+    chrome.runtime.sendMessage({
+      type: "ENABLE_SPEEDYVIDEO_GLOBAL",
+    });
+
+    // Send message to current tab
+    if (tabId !== null) {
+      chrome.tabs.sendMessage(
+        tabId,
+        { type: "ENABLE_SPEEDYVIDEO" },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn(
+              "[SpeedyVideo] Error sending enable message to tab:",
+              chrome.runtime.lastError.message
+            );
+          } else {
+            console.log(
+              "[SpeedyVideo] ENABLE_SPEEDYVIDEO sent successfully:",
+              response
+            );
+          }
+        }
+      );
     }
   };
 
@@ -132,12 +191,14 @@ const Popup = () => {
             fillColor={darkMode ? "#FFFFFF" : "#000000"}
           />
         </div>
-      </div>
+      </div>{" "}
       <SpeedButtons
         elementSpeed={elementSpeed}
         setElementSpeed={isDisabled ? () => {} : setElementSpeed}
         isPinned={isPinned}
         tabId={tabId}
+        isDisabled={isDisabled}
+        onEnableExtension={handleEnable}
       />
       <div className="footer">
         <a href="https://github.com/REDLANTERNDEV/speedyvideo" target="_blank">

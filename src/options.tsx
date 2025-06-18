@@ -20,10 +20,9 @@ export default function Options({ onClose }: { readonly onClose: () => void }) {
     }
     // else: skip storage access if not available
   }, []);
-
   // Save the current speedList to chrome.storage.local
   const handleSave = () => {
-    // stringleri sayıya çevir, min/max uygula
+    // Convert strings to numbers, apply min/max limits
     const parsedList = speedList.map((v) => {
       let num = parseFloat(v);
       if (isNaN(num)) num = 0.1;

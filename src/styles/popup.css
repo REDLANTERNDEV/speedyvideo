@@ -55,6 +55,43 @@ body {
   border: 3px solid var(--container-bg);
 }
 
+/* Disabled state styles */
+.container button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.container button.disabled:hover {
+  background-color: var(--container-bg);
+  color: var(--text-color);
+  border: none;
+  cursor: not-allowed;
+}
+
+/* Clickable buttons when disabled (different speed) */
+.container button.clickable-when-disabled {
+  opacity: 0.8;
+  cursor: pointer;
+  border: 2px dashed var(--button-border);
+}
+
+.container button.clickable-when-disabled:hover {
+  opacity: 1;
+  background-color: var(--button-hover-bg);
+  color: var(--container-bg);
+  border: 2px solid var(--button-border);
+  cursor: pointer;
+}
+
+/* Override disabled hover for clickable buttons */
+.container button.disabled.clickable-when-disabled:hover {
+  opacity: 1;
+  background-color: var(--button-hover-bg);
+  color: var(--container-bg);
+  border: 2px solid var(--button-border);
+  cursor: pointer;
+}
+
 .center-logo {
   width: 130px;
   height: 70px;

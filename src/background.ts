@@ -4,7 +4,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Listen for disable/enable messages from popup
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "DISABLE_SPEEDYVIDEO_GLOBAL") {
     chrome.storage.local.set({ extensionState: false }, () => {
       // Disable on all open tabs
@@ -39,6 +39,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ status: "enabled globally" });
     });
     return true;
+  } else if (message.type === "GET_CURRENT_TAB") {
+    // Return the tab ID from sender
+    if (sender.tab?.id) {
+      sendResponse({ tabId: sender.tab.id });
+    } else {
+      sendResponse({ tabId: null });
+    }
+    return true;
   }
 });
 
@@ -50,56 +58,68 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     tab.url &&
     (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
   ) {
-    chrome.storage.local.get(["extensionState", "selectedSpeed"], (result) => {
-      if (result.extensionState === false) {
-        chrome.tabs.sendMessage(tabId, { type: "DISABLE_SPEEDYVIDEO" });
-      } else {
-        const speed = result.selectedSpeed
-          ? parseFloat(result.selectedSpeed)
-          : 1;
-        console.log(
-          `[SpeedyVideo Background] Tab updated - ID: ${tabId}, URL: ${tab.url}, attempting to set speed to ${speed}`
-        );
-        chrome.tabs.sendMessage(
-          tabId,
-          { type: "UPDATE_SPEED", speed },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              const errorMessage = chrome.runtime.lastError.message ?? "";
-              // Ignore error messages for cases when no receiver exists
-              // or when the message port closed before a response was received.
-              if (
-                !errorMessage.includes("Receiving end does not exist") &&
-                !errorMessage.includes(
-                  "The message port closed before a response was received"
-                )
-              ) {
-                console.error(
-                  `[SpeedyVideo Background] Error sending message to tab ${tabId}:`,
-                  errorMessage
+    chrome.storage.local.get(
+      ["extensionState", "selectedSpeed", `pinnedSpeed_${tabId}`],
+      (result) => {
+        if (result.extensionState === false) {
+          chrome.tabs.sendMessage(tabId, { type: "DISABLE_SPEEDYVIDEO" });
+        } else {
+          // Check if this tab has a pinned speed first
+          let speed: number;
+          let speedSource: string;
+
+          if (result[`pinnedSpeed_${tabId}`] !== undefined) {
+            speed = parseFloat(result[`pinnedSpeed_${tabId}`]);
+            speedSource = "pinned";
+          } else {
+            speed = result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1;
+            speedSource = "global";
+          }
+
+          console.log(
+            `[SpeedyVideo Background] Tab updated - ID: ${tabId}, URL: ${tab.url}, applying ${speedSource} speed: ${speed}`
+          );
+          chrome.tabs.sendMessage(
+            tabId,
+            { type: "UPDATE_SPEED", speed },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                const errorMessage = chrome.runtime.lastError.message ?? "";
+                // Ignore error messages for cases when no receiver exists
+                // or when the message port closed before a response was received.
+                if (
+                  !errorMessage.includes("Receiving end does not exist") &&
+                  !errorMessage.includes(
+                    "The message port closed before a response was received"
+                  )
+                ) {
+                  console.error(
+                    `[SpeedyVideo Background] Error sending message to tab ${tabId}:`,
+                    errorMessage
+                  );
+                }
+              } else {
+                console.log(
+                  `[SpeedyVideo Background] Message sent to tab ${tabId} successfully. Response:`,
+                  response
                 );
               }
-            } else {
-              console.log(
-                `[SpeedyVideo Background] Message sent to tab ${tabId} successfully. Response:`,
-                response
-              );
             }
-          }
-        );
+          );
+        }
       }
-    });
+    );
   }
 });
 
-// Listen for any changes in the stored speed and notify all tabs
+// Listen for any changes in the stored speed and notify all tabs (except pinned ones)
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.selectedSpeed) {
     const newSpeed = changes.selectedSpeed.newValue
       ? parseFloat(changes.selectedSpeed.newValue)
       : 1;
     console.log(
-      `[SpeedyVideo Background] Storage changed - new speed: ${newSpeed}. Notifying tabs.`
+      `[SpeedyVideo Background] Storage changed - new speed: ${newSpeed}. Notifying non-pinned tabs.`
     );
     chrome.tabs.query({}, (tabs) => {
       tabs.forEach((tab) => {
@@ -109,34 +129,43 @@ chrome.storage.onChanged.addListener((changes, area) => {
           tab.url &&
           (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
         ) {
-          console.log(
-            `[SpeedyVideo Background] Sending speed update to tab ID: ${tab.id} (URL: ${tab.url})`
-          );
-          chrome.tabs.sendMessage(
-            tab.id,
-            { type: "UPDATE_SPEED", speed: newSpeed },
-            (response) => {
-              if (chrome.runtime.lastError) {
-                const errorMessage = chrome.runtime.lastError.message ?? "";
-                if (
-                  !errorMessage.includes("Receiving end does not exist") &&
-                  !errorMessage.includes(
-                    "The message port closed before a response was received"
-                  )
-                ) {
-                  console.error(
-                    `[SpeedyVideo Background] Error sending message to tab ${tab.id}:`,
-                    errorMessage
+          // Check if this tab has a pinned speed - if so, don't update it
+          chrome.storage.local.get([`pinnedSpeed_${tab.id}`], (result) => {
+            if (result[`pinnedSpeed_${tab.id}`] !== undefined) {
+              console.log(
+                `[SpeedyVideo Background] Skipping tab ID: ${tab.id} - has pinned speed`
+              );
+              return; // This tab has a pinned speed, don't update it
+            }
+            console.log(
+              `[SpeedyVideo Background] Sending global speed update to tab ID: ${tab.id} (URL: ${tab.url})`
+            );
+            chrome.tabs.sendMessage(
+              tab.id!,
+              { type: "UPDATE_SPEED", speed: newSpeed },
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  const errorMessage = chrome.runtime.lastError.message ?? "";
+                  if (
+                    !errorMessage.includes("Receiving end does not exist") &&
+                    !errorMessage.includes(
+                      "The message port closed before a response was received"
+                    )
+                  ) {
+                    console.error(
+                      `[SpeedyVideo Background] Error sending message to tab ${tab.id}:`,
+                      errorMessage
+                    );
+                  }
+                } else {
+                  console.log(
+                    `[SpeedyVideo Background] Message sent to tab ${tab.id} successfully. Response:`,
+                    response
                   );
                 }
-              } else {
-                console.log(
-                  `[SpeedyVideo Background] Message sent to tab ${tab.id} successfully. Response:`,
-                  response
-                );
               }
-            }
-          );
+            );
+          });
         }
       });
     });
