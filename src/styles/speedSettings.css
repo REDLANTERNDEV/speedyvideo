@@ -1,10 +1,10 @@
-.options-body {
+.speed-settings-body {
   width: 500px;
   height: 320px;
   background-color: var(--bg-color);
 }
 
-.options-container {
+.speed-settings-container {
   display: grid;
   gap: 1.5rem;
   grid-template-columns: repeat(3, 1fr);
@@ -15,7 +15,13 @@
   justify-items: center;
 }
 
-.options-content {
+.speed-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.speed-settings-content {
   background-color: var(--container-bg);
   color: var(--text-color);
   width: 130px;
@@ -27,41 +33,53 @@
   font-size: large;
   font-weight: bolder;
   text-align: center;
+  border: none;
 }
 
-.options-content:focus {
+.speed-settings-content:focus {
   border: 2px solid var(--button-border);
   outline: none;
-  box-shadow: 0 0 0 4px var(--button-border); /* Dışına kırmızı bir parlama efekti */
+  box-shadow: 0 0 0 4px var(--button-border);
 }
 
-input {
-  background-color: var(--container-bg);
+.speed-settings-remove-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.options-logo {
+.speed-settings-remove-button:hover {
+  background-color: #c82333;
+}
+
+.speed-settings-logo {
   width: 130px;
   height: 70px;
   justify-self: center;
-  /* transform: translateX(20px); */
 }
 
-.options-header {
-  /* display: grid;
-  grid-template-columns: auto 1fr auto; */
+.speed-settings-header {
   align-items: center;
   padding: 0 1rem;
 }
 
-.options-buttons {
+.speed-settings-buttons {
   display: flex;
   flex-direction: row;
-  gap: 2rem;
+  gap: 1rem;
   padding: 1.3rem 0.8rem 1rem 0;
   justify-content: flex-end;
 }
 
-.options-buttons button {
+.speed-settings-buttons button {
   color: var(--text-color);
   width: 130px;
   height: 30px;
@@ -76,18 +94,29 @@ input {
   border: black solid 2px;
 }
 
-.options-save-button {
+.speed-settings-save-button {
   color: #f8f9fa !important;
   background-color: #3d733f;
 }
-.options-save-button:hover {
+
+.speed-settings-save-button:hover {
   background-color: green;
 }
 
-.options-cancel-button {
+.speed-settings-add-button {
+  color: #f8f9fa !important;
+  background-color: #007bff;
+}
+
+.speed-settings-add-button:hover {
+  background-color: #0056b3;
+}
+
+.speed-settings-cancel-button {
   color: #f8f9fa !important;
   background-color: #8c3133;
 }
-.options-cancel-button:hover {
+
+.speed-settings-cancel-button:hover {
   background-color: red;
 }

@@ -6,12 +6,12 @@ function EditButton({
 }: Readonly<{
   fillColor: string;
   onClick: React.MouseEventHandler<HTMLButtonElement>;
-}>) {
-  return (
+}>) {  return (
     <button
       className="themebutton"
       onClick={onClick}
       style={{ cursor: "pointer" }}
+      title="Speed Settings"
     >
       <svg
         width="25"

@@ -5,13 +5,13 @@ import SpeedButtons from "./components/SpeedButtons";
 import PinButton from "./components/PinButton";
 import ThemeButton from "./components/ThemeButton";
 import EditButton from "./components/EditButton";
-import Options from "./options";
+import SpeedSettings from "./SpeedSettings";
 import { useTheme } from "./context/ThemeContext";
 import DisableButton from "./components/DisableButton";
 
 const Popup = () => {
   const { darkMode, toggleTheme } = useTheme();
-  const [showOptions, setShowOptions] = useState(false);
+  const [showSpeedSettings, setShowSpeedSettings] = useState(false);
   const [elementSpeed, setElementSpeed] = useState(1.0);
   const [isPinned, setIsPinned] = useState(false);
   const [tabId, setTabId] = useState<number | null>(null);
@@ -78,9 +78,8 @@ const Popup = () => {
       });
     }
   }, [elementSpeed, tabId, isDisabled]);
-
-  if (showOptions) {
-    return <Options onClose={() => setShowOptions(false)} />;
+  if (showSpeedSettings) {
+    return <SpeedSettings onClose={() => setShowSpeedSettings(false)} />;
   }
   const handleDisable = () => {
     const newDisabled = !isDisabled;
@@ -187,7 +186,7 @@ const Popup = () => {
             setTabId={setTabId}
           />
           <EditButton
-            onClick={() => setShowOptions(true)}
+            onClick={() => setShowSpeedSettings(true)}
             fillColor={darkMode ? "#FFFFFF" : "#000000"}
           />
         </div>
