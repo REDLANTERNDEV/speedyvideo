@@ -1,7 +1,66 @@
 // Log when the background service is installed or restarted
 chrome.runtime.onInstalled.addListener(() => {
   console.log("[SpeedyVideo Background] Service worker installed.");
+
+  // Clean up orphaned pinned speeds on installation/restart
+  cleanupOrphanedPinnedSpeeds();
 });
+
+// Function to clean up orphaned pinned speeds
+async function cleanupOrphanedPinnedSpeeds() {
+  try {
+    // Get all storage keys
+    const allData = await chrome.storage.local.get(null);
+    const pinnedSpeedKeys: string[] = [];
+
+    // Find all pinned speed keys
+    Object.keys(allData).forEach((key) => {
+      if (key.startsWith("pinnedSpeed_")) {
+        pinnedSpeedKeys.push(key);
+      }
+    });
+
+    if (pinnedSpeedKeys.length === 0) {
+      console.log(
+        "[SpeedyVideo Background] No pinned speeds found in storage."
+      );
+      return;
+    }
+
+    // Get all current tab IDs
+    const tabs = await chrome.tabs.query({});
+    const currentTabIds = new Set(
+      tabs.map((tab) => tab.id?.toString()).filter(Boolean)
+    );
+
+    // Find orphaned pinned speeds (those without corresponding active tabs)
+    const orphanedKeys: string[] = [];
+    pinnedSpeedKeys.forEach((key) => {
+      const tabId = key.replace("pinnedSpeed_", "");
+      if (!currentTabIds.has(tabId)) {
+        orphanedKeys.push(key);
+      }
+    });
+
+    // Remove orphaned keys
+    if (orphanedKeys.length > 0) {
+      await chrome.storage.local.remove(orphanedKeys);
+      console.log(
+        `[SpeedyVideo Background] Cleaned up ${orphanedKeys.length} orphaned pinned speeds:`,
+        orphanedKeys
+      );
+    } else {
+      console.log("[SpeedyVideo Background] No orphaned pinned speeds found.");
+    }
+  } catch (error) {
+    console.error("[SpeedyVideo Background] Error during cleanup:", error);
+  }
+}
+
+// Periodic cleanup every 5 minutes
+setInterval(() => {
+  cleanupOrphanedPinnedSpeeds();
+}, 5 * 60 * 1000);
 
 // Listen for disable/enable messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -110,6 +169,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       }
     );
   }
+
+  // Additional cleanup: if a tab navigates to a completely different domain,
+  // and it has a pinned speed, ask user if they want to keep it
+  if (changeInfo.url && changeInfo.url !== tab.url) {
+    chrome.storage.local.get([`pinnedSpeed_${tabId}`], (result) => {
+      if (result[`pinnedSpeed_${tabId}`] !== undefined) {
+        console.log(
+          `[SpeedyVideo Background] Tab ${tabId} navigated to different URL. Keeping pinned speed for now.`
+        );
+        // Note: We keep the pinned speed for navigation within the same tab
+        // It will be cleaned up when the tab is actually closed
+      }
+    });
+  }
 });
 
 // Listen for any changes in the stored speed and notify all tabs (except pinned ones)
@@ -187,4 +260,24 @@ chrome.tabs.onRemoved.addListener((tabId, _removeInfo) => {
       );
     }
   });
+});
+
+// Enhanced cleanup on browser startup
+chrome.runtime.onStartup.addListener(() => {
+  console.log("[SpeedyVideo Background] Browser started, performing cleanup.");
+  setTimeout(() => {
+    cleanupOrphanedPinnedSpeeds();
+  }, 2000); // Wait 2 seconds for browser to stabilize
+});
+
+// Also cleanup when browser comes back from idle/sleep
+chrome.idle.onStateChanged.addListener((newState) => {
+  if (newState === "active") {
+    console.log(
+      "[SpeedyVideo Background] Browser became active, performing cleanup."
+    );
+    setTimeout(() => {
+      cleanupOrphanedPinnedSpeeds();
+    }, 1000);
+  }
 });

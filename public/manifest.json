@@ -1,9 +1,9 @@
 {
   "name": "SpeedyVideo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "manifest_version": 3,
   "description": "video speed controller",
-  "permissions": ["storage", "tabs", "scripting"],
+  "permissions": ["storage", "tabs", "scripting", "idle"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
