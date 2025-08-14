@@ -112,22 +112,29 @@ const Popup = () => {
             response
           );
 
-          // If we're enabling and have a selected speed, ensure it gets applied
-          if (!newDisabled && elementSpeed !== 1.0) {
+          // If we're enabling, always apply the current speed
+          if (!newDisabled) {
             setTimeout(() => {
               chrome.tabs.sendMessage(tabId, {
                 type: "UPDATE_SPEED",
                 speed: elementSpeed,
               });
-            }, 100); // Small delay to ensure enable message is processed first
+            }, 100);
           }
         }
       });
     }
   };
 
-  const handleEnable = () => {
+  const handleEnable = (targetSpeed?: number) => {
     if (!isDisabled) return; // Already enabled
+
+    const speedToApply = targetSpeed ?? elementSpeed;
+
+    // Update the speed state immediately if a target speed is provided
+    if (targetSpeed !== undefined) {
+      setElementSpeed(targetSpeed);
+    }
 
     setIsDisabled(false);
 
@@ -155,6 +162,14 @@ const Popup = () => {
               "[SpeedyVideo] ENABLE_SPEEDYVIDEO sent successfully:",
               response
             );
+
+            // Apply the speed after enabling
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabId, {
+                type: "UPDATE_SPEED",
+                speed: speedToApply,
+              });
+            }, 100);
           }
         }
       );

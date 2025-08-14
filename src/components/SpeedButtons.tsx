@@ -8,7 +8,7 @@ interface SpeedButtonsProps {
   readonly isPinned: boolean;
   readonly tabId: number | null;
   readonly isDisabled: boolean;
-  readonly onEnableExtension?: () => void;
+  readonly onEnableExtension?: (targetSpeed?: number) => void;
 }
 
 function SpeedButtons({
@@ -37,50 +37,17 @@ function SpeedButtons({
       console.log(
         `[SpeedyVideo] Auto-enabling extension - current: ${elementSpeed}, selected: ${speed}`
       );
-      onEnableExtension?.(); // Enable the extension
-      // Update the speed as well
-      setTimeout(() => {
-        setElementSpeed(speed);
-        if (isPinned && tabId !== null) {
-          chrome.storage.local.set({ [`pinnedSpeed_${tabId}`]: speed });
-          chrome.tabs?.sendMessage?.(
-            tabId,
-            { type: "UPDATE_SPEED", speed },
-            (_response) => {
-              if (chrome.runtime.lastError) {
-                console.warn(
-                  "[SpeedyVideo] Error sending pinned speed update:",
-                  chrome.runtime.lastError.message
-                );
-              }
-            }
-          );
-        } else {
-          chrome.storage.local.set({ selectedSpeed: speed.toString() });
-          chrome.tabs?.query?.(
-            { active: true, currentWindow: true },
-            (tabs) => {
-              if (tabs[0]?.id) {
-                chrome.tabs.sendMessage(
-                  tabs[0].id,
-                  {
-                    type: "UPDATE_SPEED",
-                    speed,
-                  },
-                  (_response) => {
-                    if (chrome.runtime.lastError) {
-                      console.warn(
-                        "[SpeedyVideo] Error sending speed update:",
-                        chrome.runtime.lastError.message
-                      );
-                    }
-                  }
-                );
-              }
-            }
-          );
-        }
-      }, 200); // Wait for extension to be enabled
+
+      // Enable the extension with the target speed
+      onEnableExtension?.(speed);
+
+      // Also update storage immediately for consistency
+      if (isPinned && tabId !== null) {
+        chrome.storage.local.set({ [`pinnedSpeed_${tabId}`]: speed });
+      } else {
+        chrome.storage.local.set({ selectedSpeed: speed.toString() });
+      }
+
       return;
     }
 
