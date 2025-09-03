@@ -51,6 +51,94 @@ function PinButton({
       chrome.storage.local.remove([`pinnedSpeed_${localTabId}`], () => {
         setLocalIsPinned(false);
         setIsPinned(false);
+
+        // When unpinning, trigger re-evaluation of speed for this tab
+        // This will check if domain rule should become active again
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.url && tabs[0].id) {
+            chrome.storage.local.get(
+              [
+                "selectedSpeed",
+                `tabDomainOverrides_${tabs[0].id}`,
+                "domainSpeeds",
+              ],
+              (result) => {
+                const hostname = new URL(tabs[0].url!).hostname.toLowerCase();
+
+                // Check if there's a domain rule that should be active
+                const domainSpeeds = result.domainSpeeds || [];
+                const tabDomainOverrides =
+                  result[`tabDomainOverrides_${tabs[0].id}`] || {};
+
+                const findDomainRuleForHostname = (
+                  domainSpeeds: any[],
+                  hostname: string
+                ) => {
+                  if (!Array.isArray(domainSpeeds) || domainSpeeds.length === 0)
+                    return null;
+
+                  const hostnameNormalized = hostname.toLowerCase();
+
+                  // Try exact match first
+                  for (const rule of domainSpeeds) {
+                    const ruleHostname = rule.domain.toLowerCase();
+                    if (hostnameNormalized === ruleHostname) return rule;
+                  }
+
+                  // Try www variations
+                  for (const rule of domainSpeeds) {
+                    const ruleHostname = rule.domain.toLowerCase();
+                    const hostnameNoWww = hostnameNormalized.startsWith("www.")
+                      ? hostnameNormalized.substring(4)
+                      : hostnameNormalized;
+                    const ruleNoWww = ruleHostname.startsWith("www.")
+                      ? ruleHostname.substring(4)
+                      : ruleHostname;
+
+                    if (hostnameNoWww === ruleNoWww) return rule;
+                    if (hostnameNormalized.endsWith("." + ruleNoWww))
+                      return rule;
+                  }
+
+                  return null;
+                };
+
+                const domainRule = findDomainRuleForHostname(
+                  domainSpeeds,
+                  hostname
+                );
+                const isOverridden = tabDomainOverrides[hostname] === true;
+
+                if (domainRule && !isOverridden) {
+                  // Reactivate domain rule
+                  chrome.storage.local.set({
+                    [`activeDomainRule_${tabs[0].id}`]: {
+                      domain: domainRule.domain,
+                      speed: domainRule.speed,
+                      hostname: hostname,
+                      tabId: tabs[0].id,
+                    },
+                  });
+
+                  // Apply domain rule speed
+                  chrome.tabs.sendMessage(tabs[0].id!, {
+                    type: "UPDATE_SPEED",
+                    speed: domainRule.speed,
+                  });
+                } else {
+                  // Use global speed
+                  const globalSpeed = result.selectedSpeed
+                    ? parseFloat(result.selectedSpeed)
+                    : 1.0;
+                  chrome.tabs.sendMessage(tabs[0].id!, {
+                    type: "UPDATE_SPEED",
+                    speed: globalSpeed,
+                  });
+                }
+              }
+            );
+          }
+        });
       });
     }
   };

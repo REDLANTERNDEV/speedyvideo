@@ -2,17 +2,25 @@
   width: 500px;
   height: 360px;
   background-color: var(--bg-color);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .speed-settings-body {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .speed-settings-container {
   display: grid;
-  gap: 2rem;
+  gap: 1.5rem;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(2, auto);
-  border-radius: 1.75rem;
+  border-radius: 12px;
   background-color: var(--bg-color);
   align-items: start;
   justify-items: center;
+  margin-bottom: 20px;
 }
 
 .speed-settings-row {
@@ -35,33 +43,64 @@
   background-color: var(--container-bg);
   color: var(--text-color);
   width: 130px;
-  height: 30px;
+  height: 32px;
   align-items: center;
   display: flex;
   justify-content: center;
-  border-radius: 0.6rem;
-  font-size: large;
-  font-weight: bolder;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
   text-align: center;
-  border: none;
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
+  padding: 0 8px;
 }
 
 .speed-settings-content:focus {
-  border: 2px solid var(--button-border);
+  border-color: var(--button-border);
   outline: none;
-  box-shadow: 0 0 0 4px var(--button-border);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .speed-settings-content.error {
-  border: 2px solid #dc3545;
-  background-color: #fff5f5;
+  border-color: #ef4444;
+  background-color: rgba(254, 242, 242, 0.8);
+  color: #dc2626;
   animation: shake 0.3s ease-in-out;
 }
 
 .speed-settings-content.error:focus {
-  border: 2px solid #dc3545;
+  border-color: #ef4444;
   outline: none;
-  box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.3);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.speed-settings-error-message {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  right: 0;
+  font-size: 11px;
+  color: #ef4444;
+  text-align: center;
+  line-height: 1.2;
+  margin-top: 2px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Dark mode styles */
+[data-theme="dark"] .speed-settings-content:focus {
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
+}
+
+[data-theme="dark"] .speed-settings-content.error {
+  background-color: rgba(69, 26, 26, 0.6);
+  color: #fca5a5;
+  border-color: #f87171;
+}
+
+[data-theme="dark"] .speed-settings-error-message {
+  color: #fca5a5;
 }
 
 @keyframes shake {
@@ -70,24 +109,11 @@
     transform: translateX(0);
   }
   25% {
-    transform: translateX(-2px);
+    transform: translateX(-3px);
   }
   75% {
-    transform: translateX(2px);
+    transform: translateX(3px);
   }
-}
-
-.speed-settings-error-message {
-  position: absolute;
-  top: 32px;
-  left: 0;
-  right: 0;
-  font-size: 11px;
-  color: #dc3545;
-  text-align: center;
-  line-height: 1.2;
-  margin-top: 2px;
-  animation: fadeIn 0.3s ease-in;
 }
 
 @keyframes fadeIn {
@@ -101,39 +127,40 @@
   }
 }
 
-/* Dark mode error styles */
-[data-theme="dark"] .speed-settings-content.error {
-  background-color: #2d1b1b;
-  color: #ff6b6b;
-}
-
-[data-theme="dark"] .speed-settings-error-message {
-  color: #ff6b6b;
-}
-
 .speed-settings-remove-button {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  background-color: #dc3545;
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
   border: none;
   border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  font-size: 10px;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
   z-index: 10;
+  transition: all 0.2s ease;
 }
 
 .speed-settings-remove-button:hover {
-  background-color: #c82333;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
   transform: scale(1.1);
-  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+[data-theme="dark"] .speed-settings-remove-button {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  box-shadow: 0 2px 8px rgba(248, 113, 113, 0.3);
+}
+
+[data-theme="dark"] .speed-settings-remove-button:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 12px rgba(248, 113, 113, 0.4);
 }
 
 .speed-settings-logo {
@@ -145,63 +172,153 @@
 .speed-settings-header {
   align-items: center;
   padding: 0 1rem;
+  margin-bottom: 10px;
 }
 
 .speed-settings-buttons {
   display: flex;
   flex-direction: row;
-  gap: 1rem;
-  padding: 1.3rem 0.8rem 1rem 0;
-  justify-content: flex-end;
+  gap: 12px;
+  padding: 0;
+  justify-content: center;
+  margin-top: auto;
 }
 
 .speed-settings-buttons button {
-  color: var(--text-color);
-  width: 130px;
-  height: 30px;
-  align-items: center;
   display: flex;
+  align-items: center;
   justify-content: center;
-  border-radius: 0.6rem;
-  font-size: large;
-  font-weight: bolder;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  gap: 8px;
-  border: black solid 2px;
+  border: none;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  height: 34px;
+  backdrop-filter: blur(10px);
 }
 
+.speed-settings-buttons button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Save Button - Modern Green */
 .speed-settings-save-button {
-  color: #f8f9fa !important;
-  background-color: #3d733f;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .speed-settings-save-button:hover {
-  background-color: green;
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
 }
 
+[data-theme="dark"] .speed-settings-save-button {
+  background: linear-gradient(135deg, #34d399, #10b981);
+  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.3);
+}
+
+[data-theme="dark"] .speed-settings-save-button:hover {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 12px rgba(52, 211, 153, 0.4);
+}
+
+/* Add Button - Modern Blue */
 .speed-settings-add-button {
-  color: #f8f9fa !important;
-  background-color: #007bff;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 .speed-settings-add-button:hover {
-  background-color: #0056b3;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
+[data-theme="dark"] .speed-settings-add-button {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.3);
+}
+
+[data-theme="dark"] .speed-settings-add-button:hover {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
+}
+
+/* Reset Button - Modern Purple */
 .speed-settings-reset-button {
-  color: #f8f9fa !important;
-  background-color: #6f42c1;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
 .speed-settings-reset-button:hover {
-  background-color: #5a2d91;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
 }
 
+[data-theme="dark"] .speed-settings-reset-button {
+  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  box-shadow: 0 2px 8px rgba(167, 139, 250, 0.3);
+}
+
+[data-theme="dark"] .speed-settings-reset-button:hover {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 4px 12px rgba(167, 139, 250, 0.4);
+}
+
+/* Cancel Button - Modern Red */
 .speed-settings-cancel-button {
-  color: #f8f9fa !important;
-  background-color: #8c3133;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 .speed-settings-cancel-button:hover {
-  background-color: red;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+[data-theme="dark"] .speed-settings-cancel-button {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  box-shadow: 0 2px 8px rgba(248, 113, 113, 0.3);
+}
+
+[data-theme="dark"] .speed-settings-cancel-button:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 12px rgba(248, 113, 113, 0.4);
+}
+
+/* Button active states */
+.speed-settings-buttons button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 520px) {
+  .speed-settings-body {
+    width: 100%;
+    max-width: 480px;
+    padding: 16px;
+  }
+
+  .speed-settings-buttons {
+    gap: 8px;
+  }
+
+  .speed-settings-buttons button {
+    min-width: 70px;
+    font-size: 12px;
+    padding: 6px 12px;
+  }
 }

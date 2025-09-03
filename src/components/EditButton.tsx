@@ -12,7 +12,7 @@ function EditButton({
       className="themebutton"
       onClick={onClick}
       style={{ cursor: "pointer" }}
-      title="Speed Settings"
+      title="Edit Button"
     >
       <svg
         width="25"

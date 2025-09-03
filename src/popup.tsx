@@ -5,64 +5,395 @@ import SpeedButtons from "./components/SpeedButtons";
 import PinButton from "./components/PinButton";
 import ThemeButton from "./components/ThemeButton";
 import EditButton from "./components/EditButton";
+import SettingsButton from "./components/SettingsButton";
+import Settings from "./Settings";
 import SpeedSettings from "./SpeedSettings";
 import { useTheme } from "./context/ThemeContext";
 import DisableButton from "./components/DisableButton";
 
 const Popup = () => {
   const { darkMode, toggleTheme } = useTheme();
+  const [showSettings, setShowSettings] = useState(false);
   const [showSpeedSettings, setShowSpeedSettings] = useState(false);
   const [elementSpeed, setElementSpeed] = useState(1.0);
   const [isPinned, setIsPinned] = useState(false);
   const [tabId, setTabId] = useState<number | null>(null);
   const [isDisabled, setIsDisabled] = useState(false);
+
+  // Helper function to check if current domain is blacklisted
+  const isCurrentDomainBlacklisted = (
+    blacklistDomains: any[],
+    url?: string
+  ): boolean => {
+    if (!Array.isArray(blacklistDomains) || blacklistDomains.length === 0) {
+      return false;
+    }
+
+    let hostname: string;
+    try {
+      hostname = url
+        ? new URL(url).hostname.toLowerCase()
+        : window.location.hostname.toLowerCase();
+    } catch {
+      return false;
+    }
+
+    return blacklistDomains.some((item) => {
+      if (!item || typeof item.domain !== "string") return false;
+
+      const blacklistedDomain = item.domain.toLowerCase();
+
+      // Check exact match
+      if (hostname === blacklistedDomain) {
+        console.log(`[Popup] Domain blacklisted (exact): ${blacklistedDomain}`);
+        return true;
+      }
+
+      // Check subdomain
+      if (hostname.endsWith("." + blacklistedDomain)) {
+        console.log(
+          `[Popup] Domain blacklisted (subdomain): ${blacklistedDomain}`
+        );
+        return true;
+      }
+
+      // Check www variants
+      const currentNoWww = hostname.startsWith("www.")
+        ? hostname.substring(4)
+        : hostname;
+      const blacklistedNoWww = blacklistedDomain.startsWith("www.")
+        ? blacklistedDomain.substring(4)
+        : blacklistedDomain;
+
+      if (currentNoWww === blacklistedNoWww) {
+        console.log(
+          `[Popup] Domain blacklisted (www variant): ${blacklistedDomain}`
+        );
+        return true;
+      }
+
+      return false;
+    });
+  };
+
+  // Helper function to find domain rule for hostname
+  const findDomainRuleForHostname = (domainSpeeds: any[], hostname: string) => {
+    console.log("[Popup] findDomainRuleForHostname called with:", {
+      domainSpeeds,
+      hostname,
+      domainSpeedsCount: domainSpeeds?.length || 0,
+    });
+
+    if (!Array.isArray(domainSpeeds) || domainSpeeds.length === 0) {
+      console.log("[Popup] No domain speeds available");
+      return null;
+    }
+
+    const hostnameNormalized = hostname.toLowerCase();
+    console.log("[Popup] Normalized hostname:", hostnameNormalized);
+
+    // Try exact match first
+    for (const rule of domainSpeeds) {
+      const ruleHostname = rule.domain.toLowerCase();
+      console.log("[Popup] Checking exact match:", {
+        ruleHostname,
+        hostnameNormalized,
+      });
+      if (hostnameNormalized === ruleHostname) {
+        console.log("[Popup] Found exact match:", rule);
+        return rule;
+      }
+    }
+
+    // Try www variations
+    for (const rule of domainSpeeds) {
+      const ruleHostname = rule.domain.toLowerCase();
+      const hostnameNoWww = hostnameNormalized.startsWith("www.")
+        ? hostnameNormalized.substring(4)
+        : hostnameNormalized;
+      const ruleNoWww = ruleHostname.startsWith("www.")
+        ? ruleHostname.substring(4)
+        : ruleHostname;
+
+      console.log("[Popup] Checking www variations:", {
+        ruleHostname,
+        hostnameNoWww,
+        ruleNoWww,
+      });
+
+      if (hostnameNoWww === ruleNoWww) {
+        console.log("[Popup] Found www match:", rule);
+        return rule;
+      }
+
+      // Check subdomain
+      if (hostnameNormalized.endsWith("." + ruleNoWww)) {
+        console.log("[Popup] Found subdomain match:", rule);
+        return rule;
+      }
+    }
+
+    console.log("[Popup] No domain rule found for:", hostname);
+    return null;
+  };
+
+  // Helper function to determine speed for a tab
+  const determineSpeedForTab = async (
+    result: any,
+    hostname: string,
+    currentTabId: number
+  ) => {
+    console.log("[Popup] determineSpeedForTab called with:", {
+      hostname,
+      currentTabId,
+      domainSpeeds: result.domainSpeeds,
+      selectedSpeed: result.selectedSpeed,
+      tabDomainOverrides: result[`tabDomainOverrides_${currentTabId}`],
+      pinnedSpeed: result[`pinnedSpeed_${currentTabId}`],
+    });
+
+    let finalSpeed = 1.0;
+    let finalPinned = false;
+
+    // Priority 1: Pinned Speed (highest)
+    if (result[`pinnedSpeed_${currentTabId}`] !== undefined) {
+      finalSpeed = parseFloat(result[`pinnedSpeed_${currentTabId}`]);
+      finalPinned = true;
+      console.log(`[Popup] Using pinned speed: ${finalSpeed}`);
+      // Clear domain rule indicator when pinned speed is active
+      chrome.storage.local.remove([`activeDomainRule_${currentTabId}`]);
+      return { finalSpeed, finalPinned };
+    }
+
+    // Priority 2: Domain Rule (but check if user overrode it for this tab)
+    console.log("[Popup] Checking for domain rules...");
+    const domainRule = findDomainRuleForHostname(
+      result.domainSpeeds || [],
+      hostname
+    );
+
+    // Check if user has overridden this domain rule for this specific tab
+    const tabDomainOverrides =
+      result[`tabDomainOverrides_${currentTabId}`] || {};
+    const isOverridden = tabDomainOverrides[hostname] === true;
+
+    if (domainRule && !isOverridden) {
+      finalSpeed = domainRule.speed;
+      console.log(
+        `[Popup] Found active domain rule! Setting speed to: ${finalSpeed}`
+      );
+      chrome.storage.local.set({
+        [`activeDomainRule_${currentTabId}`]: {
+          domain: domainRule.domain,
+          speed: domainRule.speed,
+          hostname: hostname,
+          tabId: currentTabId,
+        },
+      });
+    } else {
+      // Use global speed (either no domain rule or it was overridden)
+      finalSpeed = result.selectedSpeed
+        ? parseFloat(result.selectedSpeed)
+        : 1.0;
+
+      if (domainRule && isOverridden) {
+        console.log(
+          `[Popup] Domain rule exists but is overridden for this tab, using global speed: ${finalSpeed}`
+        );
+      } else {
+        console.log(
+          `[Popup] No domain rule found, using global speed: ${finalSpeed}`
+        );
+      }
+
+      // Clear any active domain rule indicator for this tab since we're not using it
+      chrome.storage.local.remove([`activeDomainRule_${currentTabId}`]);
+    }
+
+    return { finalSpeed, finalPinned };
+  };
+
   useEffect(() => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       const currentTabId = tabs[0]?.id;
       if (currentTabId) {
         setTabId(currentTabId);
         chrome.storage.local.get(
-          [`pinnedSpeed_${currentTabId}`, "selectedSpeed", "extensionState"],
-          (result) => {
+          [
+            `pinnedSpeed_${currentTabId}`,
+            `tabDomainOverrides_${currentTabId}`,
+            "selectedSpeed",
+            "extensionState",
+            `activeDomainRule_${currentTabId}`,
+            "domainSpeeds",
+            "blacklistDomains",
+          ],
+          async (result) => {
+            console.log("[Popup] Retrieved storage data:", result);
+
             // Set extension state first
             setIsDisabled(result.extensionState === false);
+
+            // Priority 0: Check if current domain is blacklisted (absolute priority)
+            if (
+              tabs[0]?.url &&
+              isCurrentDomainBlacklisted(result.blacklistDomains, tabs[0].url)
+            ) {
+              console.log(
+                "[Popup] Current domain is blacklisted - disabling extension UI"
+              );
+              setIsDisabled(true);
+              setElementSpeed(1.0);
+              setIsPinned(false);
+              // Clear any pinned speeds for this domain
+              chrome.storage.local.remove([`pinnedSpeed_${currentTabId}`]);
+              chrome.storage.local.remove([`activeDomainRule_${currentTabId}`]);
+              return;
+            }
 
             if (!result.selectedSpeed) {
               chrome.storage.local.set({ selectedSpeed: "1.0" });
             }
+
+            let finalSpeed = 1.0;
+            let finalPinned = false;
+
+            // Priority 1: Check for pinned speed
             if (result[`pinnedSpeed_${currentTabId}`] !== undefined) {
-              setElementSpeed(
-                parseFloat(result[`pinnedSpeed_${currentTabId}`])
-              );
-              setIsPinned(true);
-            } else {
-              setElementSpeed(
-                result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0
-              );
-              setIsPinned(false);
+              finalSpeed = parseFloat(result[`pinnedSpeed_${currentTabId}`]);
+              finalPinned = true;
+              console.log(`[Popup] Using pinned speed: ${finalSpeed}x`);
             }
+            // Priority 2: Check for domain rules and global speed
+            else if (tabs[0]?.url) {
+              const hostname = new URL(tabs[0].url).hostname.toLowerCase();
+              const speedResult = await determineSpeedForTab(
+                result,
+                hostname,
+                currentTabId
+              );
+              finalSpeed = speedResult.finalSpeed;
+              finalPinned = speedResult.finalPinned;
+              console.log(`[Popup] Using determined speed: ${finalSpeed}x`);
+            } else {
+              // No URL available, use global speed
+              finalSpeed = result.selectedSpeed
+                ? parseFloat(result.selectedSpeed)
+                : 1.0;
+              console.log(
+                `[Popup] No URL available, using global speed: ${finalSpeed}x`
+              );
+              chrome.storage.local.remove([`activeDomainRule_${currentTabId}`]);
+            }
+
+            setElementSpeed(finalSpeed);
+            setIsPinned(finalPinned);
           }
         );
       }
     });
   }, []);
 
+  // Storage listener for real-time updates
+  useEffect(() => {
+    if (tabId !== null) {
+      const handleStorageChange = (changes: {
+        [key: string]: chrome.storage.StorageChange;
+      }) => {
+        // Check for changes in tab-specific or global settings
+        const pinnedKey = `pinnedSpeed_${tabId}`;
+        const activeDomainRuleKey = `activeDomainRule_${tabId}`;
+
+        if (
+          changes[pinnedKey] ||
+          changes[activeDomainRuleKey] ||
+          changes.selectedSpeed
+        ) {
+          chrome.storage.local.get(
+            [pinnedKey, "selectedSpeed", activeDomainRuleKey],
+            (result) => {
+              console.log(
+                "[Popup] Storage changed, evaluating speed priority...",
+                {
+                  pinned: result[pinnedKey],
+                  activeDomainRule: result[activeDomainRuleKey],
+                  selectedSpeed: result.selectedSpeed,
+                  currentIsPinned: isPinned,
+                }
+              );
+
+              if (result[pinnedKey] !== undefined) {
+                // Keep pinned speed - highest priority
+                const pinnedSpeed = parseFloat(result[pinnedKey]);
+                console.log("[Popup] Maintaining pinned speed:", pinnedSpeed);
+                setElementSpeed(pinnedSpeed);
+                setIsPinned(true);
+              } else if (result[activeDomainRuleKey]) {
+                // Keep domain rule speed - second priority
+                console.log(
+                  "[Popup] Maintaining domain rule speed:",
+                  result[activeDomainRuleKey].speed
+                );
+                setElementSpeed(result[activeDomainRuleKey].speed);
+                setIsPinned(false);
+              } else {
+                // Use global speed - lowest priority
+                const globalSpeed = result.selectedSpeed
+                  ? parseFloat(result.selectedSpeed)
+                  : 1.0;
+                console.log("[Popup] Using global speed:", globalSpeed);
+                setElementSpeed(globalSpeed);
+                setIsPinned(false);
+              }
+            }
+          );
+        }
+      };
+
+      chrome?.storage?.onChanged?.addListener?.(handleStorageChange);
+
+      return () => {
+        chrome?.storage?.onChanged?.removeListener?.(handleStorageChange);
+      };
+    }
+  }, [tabId]);
+
   useEffect(() => {
     if (tabId !== null) {
       chrome.storage.local.get(
-        [`pinnedSpeed_${tabId}`, "selectedSpeed"],
+        [`pinnedSpeed_${tabId}`, "selectedSpeed", `activeDomainRule_${tabId}`],
         (result) => {
+          console.log("[Popup] Storage changed, evaluating speed priority...", {
+            pinned: result[`pinnedSpeed_${tabId}`],
+            activeDomainRule: result[`activeDomainRule_${tabId}`],
+            selectedSpeed: result.selectedSpeed,
+            currentIsPinned: isPinned,
+          });
+
           if (isPinned && result[`pinnedSpeed_${tabId}`] !== undefined) {
-            setElementSpeed(parseFloat(result[`pinnedSpeed_${tabId}`]));
-          } else {
-            setElementSpeed(
-              result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0
+            // Keep pinned speed - highest priority
+            const pinnedSpeed = parseFloat(result[`pinnedSpeed_${tabId}`]);
+            console.log("[Popup] Maintaining pinned speed:", pinnedSpeed);
+            setElementSpeed(pinnedSpeed);
+          } else if (result[`activeDomainRule_${tabId}`]) {
+            // Keep domain rule speed - second priority
+            console.log(
+              "[Popup] Maintaining domain rule speed:",
+              result[`activeDomainRule_${tabId}`].speed
             );
+            setElementSpeed(result[`activeDomainRule_${tabId}`].speed);
+          } else {
+            // Use global speed - lowest priority
+            const globalSpeed = result.selectedSpeed
+              ? parseFloat(result.selectedSpeed)
+              : 1.0;
+            console.log("[Popup] Using global speed:", globalSpeed);
+            setElementSpeed(globalSpeed);
           }
         }
       );
     }
-  }, [tabId, isPinned]);
+  }, [tabId, isPinned]); // Remove elementSpeed dependency to prevent conflicts
   useEffect(() => {
     // Only send speed updates when extension is enabled and we have valid state
     if (tabId !== null && elementSpeed && !isDisabled) {
@@ -78,6 +409,11 @@ const Popup = () => {
       });
     }
   }, [elementSpeed, tabId, isDisabled]);
+
+  if (showSettings) {
+    return <Settings onClose={() => setShowSettings(false)} />;
+  }
+
   if (showSpeedSettings) {
     return <SpeedSettings onClose={() => setShowSpeedSettings(false)} />;
   }
@@ -189,11 +525,16 @@ const Popup = () => {
             fillColor={darkMode ? "#FFFFFF" : "#000000"}
             onClick={toggleTheme}
           />
+          <div className="spacer"></div>
         </div>
         <div className="center-logo">
           <LogoSvg fillColor={darkMode ? "#FFFFFF" : "#000000"} />
         </div>
         <div className="right-icons">
+          <SettingsButton
+            fillColor={darkMode ? "#FFFFFF" : "#000000"}
+            onClick={() => setShowSettings(true)}
+          />
           <PinButton
             fillColor={darkMode ? "#FFFFFF" : "#000000"}
             selectedSpeed={elementSpeed}
