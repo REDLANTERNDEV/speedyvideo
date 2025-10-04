@@ -88,47 +88,67 @@ function SpeedButtons({
       chrome.storage.local.set({ [`pinnedSpeed_${tabId}`]: speed });
       log(`Set pinned speed for tab ${tabId} to ${speed}x.`);
     } else {
-      // When not pinned, a user click overrides any domain rule for the current tab
-      // and updates the global speed.
+      // When not pinned, check if there's an active domain rule to update
       chrome.tabs?.query?.({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]?.url && tabId) {
           const hostname = new URL(tabs[0].url).hostname.toLowerCase();
-          const overrideKey = `tabDomainOverrides_${tabId}`;
 
-          // Mark this domain as overridden for this tab and update global speed
-          chrome.storage.local.get([overrideKey], (result) => {
-            const tabDomainOverrides = result[overrideKey] || {};
-            tabDomainOverrides[hostname] = true;
+          // Check if there's an active domain rule for this tab
+          if (activeDomainRule && activeDomainRule.hostname === hostname) {
+            // User is changing speed on a domain with a rule
+            // This should update global speed and override the domain rule for this tab only
+            // The domain rule itself should remain unchanged for future tabs
 
+            // Update global speed
             chrome.storage.local.set({
-              [overrideKey]: tabDomainOverrides,
-              selectedSpeed: speed.toString(), // Update global speed
+              selectedSpeed: speed.toString(),
             });
 
-            // Clear the visual indicator for the domain rule for this specific tab
+            // Clear the domain rule indicator for this specific tab
+            // This makes the tab use global speed instead of domain rule
             chrome.storage.local.remove(`activeDomainRule_${tabId}`);
 
+            // Mark that user disabled domain rule for this specific tab
+            chrome.storage.local.set({
+              [`domainRuleDisabled_${tabId}`]: {
+                hostname: hostname,
+                disabledAt: Date.now(),
+              },
+            });
+
             log(
-              `User action overrode domain rule. Set global speed to ${speed}x and marked ${hostname} as overridden for tab ${tabId}.`
+              `User changed speed to ${speed}x, switching from domain rule to global speed for this tab.`
             );
-          });
+          } else {
+            // No active domain rule, update global speed
+            chrome.storage.local.set({
+              selectedSpeed: speed.toString(),
+            });
+
+            log(`Updated global speed to ${speed}x.`);
+          }
         }
       });
     }
 
-    // Send speed update to the content script regardless of pin state
+    // Send speed update to the content script
     if (typeof tabId === "number") {
       chrome.tabs?.sendMessage?.(
         tabId,
         {
           type: "UPDATE_SPEED",
           speed,
+          source: "user-action",
         },
-        (_response) => {
+        () => {
           if (chrome.runtime.lastError) {
             console.warn(
               "[SpeedyVideo] Error sending speed update:",
               chrome.runtime.lastError.message
+            );
+          } else {
+            console.log(
+              `[SpeedButtons] Speed updated to ${speed}x successfully`
             );
           }
         }

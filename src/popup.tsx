@@ -137,7 +137,7 @@ const Popup = () => {
     return null;
   };
 
-  // Helper function to determine speed for a tab
+  // Helper function to determine speed for a tab (privacy-focused session approach)
   const determineSpeedForTab = async (
     result: any,
     hostname: string,
@@ -148,7 +148,6 @@ const Popup = () => {
       currentTabId,
       domainSpeeds: result.domainSpeeds,
       selectedSpeed: result.selectedSpeed,
-      tabDomainOverrides: result[`tabDomainOverrides_${currentTabId}`],
       pinnedSpeed: result[`pinnedSpeed_${currentTabId}`],
     });
 
@@ -165,23 +164,19 @@ const Popup = () => {
       return { finalSpeed, finalPinned };
     }
 
-    // Priority 2: Domain Rule (but check if user overrode it for this tab)
+    // Priority 2: Domain Rule (check if user disabled it for this tab)
     console.log("[Popup] Checking for domain rules...");
     const domainRule = findDomainRuleForHostname(
       result.domainSpeeds || [],
       hostname
     );
 
-    // Check if user has overridden this domain rule for this specific tab
-    const tabDomainOverrides =
-      result[`tabDomainOverrides_${currentTabId}`] || {};
-    const isOverridden = tabDomainOverrides[hostname] === true;
+    // Check if user has disabled domain rule for this specific tab
+    const domainRuleDisabled = result[`domainRuleDisabled_${currentTabId}`];
 
-    if (domainRule && !isOverridden) {
+    if (domainRule && !domainRuleDisabled) {
       finalSpeed = domainRule.speed;
-      console.log(
-        `[Popup] Found active domain rule! Setting speed to: ${finalSpeed}`
-      );
+      console.log(`[Popup] Found domain rule! Setting speed to: ${finalSpeed}`);
       chrome.storage.local.set({
         [`activeDomainRule_${currentTabId}`]: {
           domain: domainRule.domain,
@@ -191,14 +186,14 @@ const Popup = () => {
         },
       });
     } else {
-      // Use global speed (either no domain rule or it was overridden)
+      // Use global speed (no domain rule found or user disabled it)
       finalSpeed = result.selectedSpeed
         ? parseFloat(result.selectedSpeed)
         : 1.0;
 
-      if (domainRule && isOverridden) {
+      if (domainRuleDisabled) {
         console.log(
-          `[Popup] Domain rule exists but is overridden for this tab, using global speed: ${finalSpeed}`
+          `[Popup] Domain rule disabled by user for this tab, using global speed: ${finalSpeed}`
         );
       } else {
         console.log(
@@ -221,10 +216,10 @@ const Popup = () => {
         chrome.storage.local.get(
           [
             `pinnedSpeed_${currentTabId}`,
-            `tabDomainOverrides_${currentTabId}`,
             "selectedSpeed",
             "extensionState",
             `activeDomainRule_${currentTabId}`,
+            `domainRuleDisabled_${currentTabId}`,
             "domainSpeeds",
             "blacklistDomains",
           ],
@@ -400,6 +395,7 @@ const Popup = () => {
       chrome.tabs.sendMessage(tabId, {
         type: "UPDATE_SPEED",
         speed: elementSpeed,
+        source: "popup-sync", // Indicate this is a popup synchronization
       });
     }
     // When extension is disabled, ensure content script knows

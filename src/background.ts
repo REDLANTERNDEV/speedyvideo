@@ -5,6 +5,9 @@ chrome.runtime.onInstalled.addListener(() => {
   // Initialize default exclusion patterns if not already set
   initializeDefaultExclusions();
 
+  // Clean up old data structures for privacy
+  cleanupLegacyData();
+
   // Clean up orphaned pinned speeds on installation/restart
   cleanupOrphanedPinnedSpeeds();
 
@@ -106,6 +109,55 @@ function initializeDefaultExclusions() {
   );
 }
 
+// Function to clean up legacy data for privacy and storage optimization
+function cleanupLegacyData() {
+  chrome.storage.local.get(null, (allData) => {
+    const keysToRemove: string[] = [];
+
+    // Find all tabDomainOverrides keys (old privacy-invasive system)
+    Object.keys(allData).forEach((key) => {
+      if (key.startsWith("tabDomainOverrides_")) {
+        keysToRemove.push(key);
+      }
+    });
+
+    // Also clean up the new consolidated tabDomainOverrides if it exists
+    if (allData.tabDomainOverrides) {
+      keysToRemove.push("tabDomainOverrides");
+    }
+
+    if (keysToRemove.length > 0) {
+      chrome.storage.local.remove(keysToRemove, () => {
+        console.log(
+          `[SpeedyVideo Background] Removed ${keysToRemove.length} legacy data keys for privacy`
+        );
+      });
+    }
+
+    // Notify content scripts to clean up localStorage
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach((tab) => {
+        if (
+          tab.id &&
+          tab.url &&
+          (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
+        ) {
+          chrome.tabs.sendMessage(
+            tab.id,
+            { type: "CLEANUP_LEGACY_DATA" },
+            () => {
+              // Ignore errors for tabs that don't have content script loaded
+              if (chrome.runtime.lastError) {
+                // Silent ignore
+              }
+            }
+          );
+        }
+      });
+    });
+  });
+}
+
 // Function to clean up orphaned data (pinned speeds and active domain rules)
 async function cleanupOrphanedPinnedSpeeds() {
   try {
@@ -113,6 +165,7 @@ async function cleanupOrphanedPinnedSpeeds() {
     const allData = await chrome.storage.local.get(null);
     const pinnedSpeedKeys: string[] = [];
     const activeDomainRuleKeys: string[] = [];
+    const tabDomainOverrideKeys: string[] = [];
 
     // Find all tab-specific keys
     Object.keys(allData).forEach((key) => {
@@ -120,6 +173,8 @@ async function cleanupOrphanedPinnedSpeeds() {
         pinnedSpeedKeys.push(key);
       } else if (key.startsWith("activeDomainRule_")) {
         activeDomainRuleKeys.push(key);
+      } else if (key.startsWith("tabDomainOverrides_")) {
+        tabDomainOverrideKeys.push(key);
       }
     });
 
@@ -146,6 +201,13 @@ async function cleanupOrphanedPinnedSpeeds() {
       }
     });
 
+    tabDomainOverrideKeys.forEach((key) => {
+      const tabId = key.replace("tabDomainOverrides_", "");
+      if (!currentTabIds.has(tabId)) {
+        orphanedKeys.push(key);
+      }
+    });
+
     // Remove orphaned keys
     if (orphanedKeys.length > 0) {
       await chrome.storage.local.remove(orphanedKeys);
@@ -153,8 +215,24 @@ async function cleanupOrphanedPinnedSpeeds() {
         `[SpeedyVideo Background] Cleaned up ${orphanedKeys.length} orphaned keys:`,
         orphanedKeys
       );
-    } else {
-      console.log("[SpeedyVideo Background] No orphaned data found.");
+    }
+
+    // Also clean the tabDomainOverrides object
+    const tabDomainOverrides = allData.tabDomainOverrides || {};
+    const cleanedOverrides: { [tabId: string]: any } = {};
+    let cleanedCount = 0;
+    Object.keys(tabDomainOverrides).forEach((tabId) => {
+      if (currentTabIds.has(tabId)) {
+        cleanedOverrides[tabId] = tabDomainOverrides[tabId];
+      } else {
+        cleanedCount++;
+      }
+    });
+    if (cleanedCount > 0) {
+      await chrome.storage.local.set({ tabDomainOverrides: cleanedOverrides });
+      console.log(
+        `[SpeedyVideo Background] Cleaned up ${cleanedCount} orphaned entries in tabDomainOverrides`
+      );
     }
   } catch (error) {
     console.error("[SpeedyVideo Background] Error during cleanup:", error);
@@ -331,71 +409,77 @@ function determineSpeedForTab(
   };
 }
 
-// When a tab is updated and finished loading, get the saved speed and send a message
+// When a tab is updated and finished loading, apply systematic speed determination
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // Process only if the tab URL starts with http:// or https://
   if (
     changeInfo.status === "complete" &&
     tab.url &&
     (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
   ) {
-    chrome.storage.local.get(
-      [
-        "extensionState",
-        "selectedSpeed",
-        `pinnedSpeed_${tabId}`,
-        "domainSpeeds",
-        "blacklistDomains",
-      ],
-      (result) => {
-        if (result.extensionState === false) {
-          chrome.tabs.sendMessage(tabId, { type: "DISABLE_SPEEDYVIDEO" });
-          return;
-        }
+    // Add a small delay to ensure page is fully loaded
+    setTimeout(() => {
+      chrome.storage.local.get(
+        [
+          "extensionState",
+          "selectedSpeed",
+          `pinnedSpeed_${tabId}`,
+          "domainSpeeds",
+          "blacklistDomains",
+        ],
+        (result) => {
+          if (result.extensionState === false) {
+            chrome.tabs.sendMessage(tabId, { type: "DISABLE_SPEEDYVIDEO" });
+            return;
+          }
 
-        const hostname = new URL(tab.url!).hostname.toLowerCase();
+          const hostname = new URL(tab.url!).hostname.toLowerCase();
 
-        // Check if current domain is blacklisted (highest priority)
-        if (isHostnameBlacklisted(result.blacklistDomains || [], hostname)) {
-          console.log(
-            `[SpeedyVideo Background] Domain ${hostname} is blacklisted - extension disabled`
+          // Check if current domain is blacklisted (highest priority)
+          if (isHostnameBlacklisted(result.blacklistDomains || [], hostname)) {
+            console.log(
+              `[SpeedyVideo Background] Domain ${hostname} is blacklisted`
+            );
+            chrome.tabs.sendMessage(tabId, { type: "DISABLE_SPEEDYVIDEO" });
+            return;
+          }
+
+          const { speed, speedSource } = determineSpeedForTab(
+            tabId,
+            tab.url,
+            result
           );
-          chrome.tabs.sendMessage(tabId, { type: "DISABLE_SPEEDYVIDEO" });
-          return;
-        }
 
-        const domainRule = findDomainRuleForHostname(
-          result.domainSpeeds || [],
-          hostname
-        );
+          console.log(
+            `[SpeedyVideo Background] Tab ${tabId} (${hostname}) using ${speedSource} speed: ${speed}`
+          );
 
-        // Simple priority: Pinned Speed > Domain Rule > Global Speed
-        const { speed, speedSource } = determineSpeedForTab(
-          tabId,
-          tab.url,
-          result
-        );
+          // Update activeDomainRule based on speed source
+          const domainRule = findDomainRuleForHostname(
+            result.domainSpeeds || [],
+            hostname
+          );
+          if (domainRule && speedSource === "domain rule") {
+            chrome.storage.local.set({
+              [`activeDomainRule_${tabId}`]: {
+                domain: domainRule.domain,
+                speed: domainRule.speed,
+                hostname: hostname,
+                tabId: tabId,
+              },
+            });
+          } else {
+            chrome.storage.local.remove([`activeDomainRule_${tabId}`]);
+          }
 
-        console.log(
-          `[SpeedyVideo Background] Tab ${tabId} (${hostname}) using ${speedSource} speed: ${speed}`
-        );
-
-        // Update activeDomainRule based on what speed source we're using
-        if (domainRule && speedSource === "domain rule") {
-          chrome.storage.local.set({
-            [`activeDomainRule_${tabId}`]: domainRule.domain,
+          // Send speed update to content script with source information
+          chrome.tabs.sendMessage(tabId, {
+            type: "UPDATE_SPEED",
+            speed: speed,
+            source: speedSource,
           });
-        } else {
-          chrome.storage.local.remove([`activeDomainRule_${tabId}`]);
         }
-
-        // Send speed update to content script
-        chrome.tabs.sendMessage(tabId, {
-          type: "UPDATE_SPEED",
-          speed: speed,
-        });
-      }
-    );
+      );
+    }, 500); // 500ms delay to ensure page is ready
   }
 });
 

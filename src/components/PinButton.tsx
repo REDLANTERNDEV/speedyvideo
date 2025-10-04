@@ -57,18 +57,12 @@ function PinButton({
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           if (tabs[0]?.url && tabs[0].id) {
             chrome.storage.local.get(
-              [
-                "selectedSpeed",
-                `tabDomainOverrides_${tabs[0].id}`,
-                "domainSpeeds",
-              ],
+              ["selectedSpeed", "domainSpeeds"],
               (result) => {
                 const hostname = new URL(tabs[0].url!).hostname.toLowerCase();
 
                 // Check if there's a domain rule that should be active
                 const domainSpeeds = result.domainSpeeds || [];
-                const tabDomainOverrides =
-                  result[`tabDomainOverrides_${tabs[0].id}`] || {};
 
                 const findDomainRuleForHostname = (
                   domainSpeeds: any[],
@@ -107,10 +101,9 @@ function PinButton({
                   domainSpeeds,
                   hostname
                 );
-                const isOverridden = tabDomainOverrides[hostname] === true;
 
-                if (domainRule && !isOverridden) {
-                  // Reactivate domain rule
+                if (domainRule) {
+                  // Reactivate domain rule (session overrides are handled by content script)
                   chrome.storage.local.set({
                     [`activeDomainRule_${tabs[0].id}`]: {
                       domain: domainRule.domain,
