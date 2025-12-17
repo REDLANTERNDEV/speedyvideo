@@ -98,7 +98,7 @@ function PinButton({
                 };
 
                 const domainRule = findDomainRuleForHostname(
-                  domainSpeeds,
+                  domainSpeeds as any[],
                   hostname
                 );
 
@@ -120,8 +120,8 @@ function PinButton({
                   });
                 } else {
                   // Use global speed
-                  const globalSpeed = result.selectedSpeed
-                    ? parseFloat(result.selectedSpeed)
+                  const globalSpeed = (result.selectedSpeed as string)
+                    ? parseFloat(result.selectedSpeed as string)
                     : 1.0;
                   chrome.tabs.sendMessage(tabs[0].id!, {
                     type: "UPDATE_SPEED",

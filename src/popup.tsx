@@ -232,7 +232,10 @@ const Popup = () => {
             // Priority 0: Check if current domain is blacklisted (absolute priority)
             if (
               tabs[0]?.url &&
-              isCurrentDomainBlacklisted(result.blacklistDomains, tabs[0].url)
+              isCurrentDomainBlacklisted(
+                result.blacklistDomains as any[],
+                tabs[0].url
+              )
             ) {
               console.log(
                 "[Popup] Current domain is blacklisted - disabling extension UI"
@@ -246,7 +249,7 @@ const Popup = () => {
               return;
             }
 
-            if (!result.selectedSpeed) {
+            if (!(result.selectedSpeed as string)) {
               chrome.storage.local.set({ selectedSpeed: "1.0" });
             }
 
@@ -255,7 +258,9 @@ const Popup = () => {
 
             // Priority 1: Check for pinned speed
             if (result[`pinnedSpeed_${currentTabId}`] !== undefined) {
-              finalSpeed = parseFloat(result[`pinnedSpeed_${currentTabId}`]);
+              finalSpeed = parseFloat(
+                result[`pinnedSpeed_${currentTabId}`] as string
+              );
               finalPinned = true;
               console.log(`[Popup] Using pinned speed: ${finalSpeed}x`);
             }
@@ -272,8 +277,8 @@ const Popup = () => {
               console.log(`[Popup] Using determined speed: ${finalSpeed}x`);
             } else {
               // No URL available, use global speed
-              finalSpeed = result.selectedSpeed
-                ? parseFloat(result.selectedSpeed)
+              finalSpeed = (result.selectedSpeed as string)
+                ? parseFloat(result.selectedSpeed as string)
                 : 1.0;
               console.log(
                 `[Popup] No URL available, using global speed: ${finalSpeed}x`
@@ -319,7 +324,7 @@ const Popup = () => {
 
               if (result[pinnedKey] !== undefined) {
                 // Keep pinned speed - highest priority
-                const pinnedSpeed = parseFloat(result[pinnedKey]);
+                const pinnedSpeed = parseFloat(result[pinnedKey] as string);
                 console.log("[Popup] Maintaining pinned speed:", pinnedSpeed);
                 setElementSpeed(pinnedSpeed);
                 setIsPinned(true);
@@ -327,14 +332,14 @@ const Popup = () => {
                 // Keep domain rule speed - second priority
                 console.log(
                   "[Popup] Maintaining domain rule speed:",
-                  result[activeDomainRuleKey].speed
+                  (result[activeDomainRuleKey] as any).speed
                 );
-                setElementSpeed(result[activeDomainRuleKey].speed);
+                setElementSpeed((result[activeDomainRuleKey] as any).speed);
                 setIsPinned(false);
               } else {
                 // Use global speed - lowest priority
-                const globalSpeed = result.selectedSpeed
-                  ? parseFloat(result.selectedSpeed)
+                const globalSpeed = (result.selectedSpeed as string)
+                  ? parseFloat(result.selectedSpeed as string)
                   : 1.0;
                 console.log("[Popup] Using global speed:", globalSpeed);
                 setElementSpeed(globalSpeed);
@@ -367,20 +372,22 @@ const Popup = () => {
 
           if (isPinned && result[`pinnedSpeed_${tabId}`] !== undefined) {
             // Keep pinned speed - highest priority
-            const pinnedSpeed = parseFloat(result[`pinnedSpeed_${tabId}`]);
+            const pinnedSpeed = parseFloat(
+              result[`pinnedSpeed_${tabId}`] as string
+            );
             console.log("[Popup] Maintaining pinned speed:", pinnedSpeed);
             setElementSpeed(pinnedSpeed);
           } else if (result[`activeDomainRule_${tabId}`]) {
             // Keep domain rule speed - second priority
             console.log(
               "[Popup] Maintaining domain rule speed:",
-              result[`activeDomainRule_${tabId}`].speed
+              (result[`activeDomainRule_${tabId}`] as any).speed
             );
-            setElementSpeed(result[`activeDomainRule_${tabId}`].speed);
+            setElementSpeed((result[`activeDomainRule_${tabId}`] as any).speed);
           } else {
             // Use global speed - lowest priority
-            const globalSpeed = result.selectedSpeed
-              ? parseFloat(result.selectedSpeed)
+            const globalSpeed = (result.selectedSpeed as string)
+              ? parseFloat(result.selectedSpeed as string)
               : 1.0;
             console.log("[Popup] Using global speed:", globalSpeed);
             setElementSpeed(globalSpeed);

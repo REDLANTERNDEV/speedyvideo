@@ -815,8 +815,8 @@ function getCurrentTabAndApplySpeed(): void {
     if (!response) {
       console.warn("[SpeedyVideo] Runtime error - using fallback");
       chrome.storage.local.get(["selectedSpeed"], (result) => {
-        const speed = result.selectedSpeed
-          ? parseFloat(result.selectedSpeed)
+        const speed = (result.selectedSpeed as string)
+          ? parseFloat(result.selectedSpeed as string)
           : 1.0;
         initializePlaybackRate(speed, "fallback");
         observeMediaChanges(speed, "fallback");

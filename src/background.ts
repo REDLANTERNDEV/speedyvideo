@@ -218,7 +218,8 @@ async function cleanupOrphanedPinnedSpeeds() {
     }
 
     // Also clean the tabDomainOverrides object
-    const tabDomainOverrides = allData.tabDomainOverrides || {};
+    const tabDomainOverrides =
+      (allData.tabDomainOverrides as Record<string, any>) || {};
     const cleanedOverrides: { [tabId: string]: any } = {};
     let cleanedCount = 0;
     Object.keys(tabDomainOverrides).forEach((tabId) => {
@@ -435,7 +436,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           const hostname = new URL(tab.url!).hostname.toLowerCase();
 
           // Check if current domain is blacklisted (highest priority)
-          if (isHostnameBlacklisted(result.blacklistDomains || [], hostname)) {
+          if (
+            isHostnameBlacklisted(
+              (result.blacklistDomains as any[]) || [],
+              hostname
+            )
+          ) {
             console.log(
               `[SpeedyVideo Background] Domain ${hostname} is blacklisted`
             );
@@ -455,7 +461,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
           // Update activeDomainRule based on speed source
           const domainRule = findDomainRuleForHostname(
-            result.domainSpeeds || [],
+            (result.domainSpeeds as any[]) || [],
             hostname
           );
           if (domainRule && speedSource === "domain rule") {
@@ -487,7 +493,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.selectedSpeed) {
     const newSpeed = changes.selectedSpeed.newValue
-      ? parseFloat(changes.selectedSpeed.newValue)
+      ? parseFloat(changes.selectedSpeed.newValue as string)
       : 1;
     console.log(
       `[SpeedyVideo Background] Storage changed - new speed: ${newSpeed}. Notifying non-pinned tabs.`
@@ -516,7 +522,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
               // Check blacklist first
               if (
-                isHostnameBlacklisted(result.blacklistDomains || [], hostname)
+                isHostnameBlacklisted(
+                  (result.blacklistDomains as any[]) || [],
+                  hostname
+                )
               ) {
                 console.log(
                   `[SpeedyVideo Background] Skipping tab ID: ${tab.id} - domain ${hostname} is blacklisted`
@@ -525,7 +534,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
               }
 
               const domainRule = findDomainRuleForHostname(
-                result.domainSpeeds || [],
+                (result.domainSpeeds as any[]) || [],
                 hostname
               );
 

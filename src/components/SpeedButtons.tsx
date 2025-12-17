@@ -48,7 +48,9 @@ function SpeedButtons({
           `[SpeedyVideo] Loading activeDomainRule for tab ${tabId} from storage:`,
           result[`activeDomainRule_${tabId}`]
         );
-        setActiveDomainRule(result[`activeDomainRule_${tabId}`] || null);
+        setActiveDomainRule(
+          (result[`activeDomainRule_${tabId}`] as any) || null
+        );
       });
 
       // Set up listener for storage changes to update domain rule in real-time
@@ -61,7 +63,9 @@ function SpeedButtons({
             `[SpeedyVideo] activeDomainRule for tab ${tabId} changed:`,
             changes[activeDomainRuleKey].newValue
           );
-          setActiveDomainRule(changes[activeDomainRuleKey].newValue || null);
+          setActiveDomainRule(
+            (changes[activeDomainRuleKey].newValue as any) || null
+          );
         }
       };
 
