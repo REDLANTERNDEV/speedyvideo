@@ -1,8 +1,10 @@
 {
-  "name": "SpeedyVideo",
-  "version": "0.2.0",
+  "name": "SpeedyVideo - Video Speed Controller",
+  "version": "1.0.0",
   "manifest_version": 3,
-  "description": "video speed controller",
+  "description": "Control playback speed of videos on any website. Speed up, slow down, or keep your videos at normal speed with an easy-to-use interface.",
+  "author": "SpeedyVideo Contributors",
+  "homepage_url": "https://github.com/yourusername/speedyvideo",
   "permissions": ["storage", "tabs", "scripting", "idle"],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -12,11 +14,24 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "run_at": "document_idle",
+      "run_at": "document_start",
       "all_frames": true
     }
   ],
   "action": {
-    "default_popup": "index.html"
+    "default_popup": "index.html",
+    "default_title": "SpeedyVideo - Control Video Speed",
+    "default_icon": {
+      "16": "icons/speedy-16.png",
+      "32": "icons/speedy-32.png",
+      "48": "icons/speedy-48.png",
+      "128": "icons/speedy-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/speedy-16.png",
+    "32": "icons/speedy-32.png",
+    "48": "icons/speedy-48.png",
+    "128": "icons/speedy-128.png"
   }
 }

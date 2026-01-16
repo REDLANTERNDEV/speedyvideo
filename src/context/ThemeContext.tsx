@@ -17,17 +17,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     if (chrome?.storage?.local) {
       try {
         chrome.storage.local.get(["darkMode"], (result) => {
-          if (chrome.runtime?.lastError) {
-            console.error(
-              "Error accessing local storage:",
-              chrome.runtime.lastError
-            );
-            return;
+          if (!chrome.runtime?.lastError) {
+            setDarkMode(!!result.darkMode);
           }
-          setDarkMode(!!result.darkMode);
         });
       } catch (error) {
-        console.error("Unexpected error while accessing local storage:", error);
+        // Silent error handling in production
       }
     }
     // else: skip storage access if not available
@@ -40,8 +35,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
       document.body.classList.remove("dark-mode");
     }
     if (chrome?.storage?.local) {
-      chrome.storage.local.set({ darkMode }).catch((error: any) => {
-        console.log(error);
+      chrome.storage.local.set({ darkMode }).catch(() => {
+        // Silent error handling in production
       });
     }
     // else: skip storage access if not available

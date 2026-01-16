@@ -1,11 +1,19 @@
 {
   "name": "speedyvideo",
-  "private": "false",
-  "version": "0.1.0",
+  "private": false,
+  "version": "1.0.0",
+  "description": "A Chrome extension to control video playback speed on any website",
+  "author": "SpeedyVideo Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/REDLANTERNDEV/speedyvideo"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:prod": "tsc -b && vite build --mode production",
     "lint": "eslint .",
     "preview": "vite preview"
   },

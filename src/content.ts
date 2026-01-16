@@ -59,9 +59,6 @@ class SpeedManager {
     });
 
     if (updatedCount > 0) {
-      console.log(
-        `[SpeedyVideo] Applied ${this.currentSpeed}x (${this.currentSource}) to ${updatedCount}/${mediaElements.length} media elements`
-      );
     }
   }
 
@@ -72,10 +69,6 @@ class SpeedManager {
       sessionStorage.setItem("sv_session_source", this.currentSource);
     } catch (error) {
       // Fallback if sessionStorage is not available
-      console.warn(
-        "[SpeedyVideo] SessionStorage not available:",
-        (error as Error).message
-      );
     }
   }
 
@@ -87,16 +80,8 @@ class SpeedManager {
       if (sessionSpeed && sessionSource) {
         this.currentSpeed = parseFloat(sessionSpeed);
         this.currentSource = sessionSource;
-        console.log(
-          `[SpeedyVideo] Restored session state: ${this.currentSpeed}x (${this.currentSource})`
-        );
       }
-    } catch (error) {
-      console.warn(
-        "[SpeedyVideo] Could not load session state:",
-        (error as Error).message
-      );
-    }
+    } catch (error) {}
   }
 
   // Clean up when tab is closed or navigated away
@@ -106,7 +91,6 @@ class SpeedManager {
       sessionStorage.removeItem("sv_session_source");
     } catch (error) {
       // Silent cleanup failure - not critical
-      console.debug("[SpeedyVideo] Cleanup failed:", (error as Error).message);
     }
   }
 } // Initialize the speed manager
@@ -125,9 +109,7 @@ let videoCheckInterval: number | undefined; // For periodic video checks
 // Global error handler for unhandled extension context errors
 window.addEventListener("error", (event) => {
   if (event.error?.message?.includes("Extension context invalidated")) {
-    console.warn(
-      "[SpeedyVideo] Global error caught - Extension context invalidated"
-    );
+    // Removed console statement
     extensionContextLost = true;
     // Switch to standalone mode
     switchToStandaloneMode();
@@ -137,14 +119,12 @@ window.addEventListener("error", (event) => {
 
 // Function to switch to standalone mode when extension context is lost
 function switchToStandaloneMode() {
-  console.log(
-    "[SpeedyVideo] Switching to standalone mode - no extension communication"
-  );
+  // Removed console statement
 
   // Use session fallback or default speed
   const fallbackSpeed = speedManager.getCurrentSpeed() || 1.0;
 
-  console.log(`[SpeedyVideo] Using standalone speed: ${fallbackSpeed}`);
+  // Removed console statement
   initializePlaybackRate(fallbackSpeed, "standalone");
   observeMediaChanges(fallbackSpeed, "standalone");
 }
@@ -186,17 +166,11 @@ function isCurrentDomainBlacklisted(blacklistDomains: any[]): boolean {
 
     // Check exact match
     if (currentHostname === blacklistedDomain) {
-      console.log(
-        `[SpeedyVideo] Domain blacklisted (exact): ${blacklistedDomain}`
-      );
       return true;
     }
 
     // Check if current hostname is a subdomain of blacklisted domain
     if (currentHostname.endsWith("." + blacklistedDomain)) {
-      console.log(
-        `[SpeedyVideo] Domain blacklisted (subdomain): ${blacklistedDomain}`
-      );
       return true;
     }
 
@@ -209,9 +183,6 @@ function isCurrentDomainBlacklisted(blacklistDomains: any[]): boolean {
       : blacklistedDomain;
 
     if (currentNoWww === blacklistedNoWww) {
-      console.log(
-        `[SpeedyVideo] Domain blacklisted (www variant): ${blacklistedDomain}`
-      );
       return true;
     }
   }
@@ -226,9 +197,7 @@ function shouldExcludeUrl(
 ): boolean {
   // If user has set a custom domain rule, don't exclude
   if (hasUserDomainRule) {
-    console.log(
-      "[SpeedyVideo] User has custom domain rule - skipping exclusion"
-    );
+    // Removed console statement
     return false;
   }
 
@@ -239,19 +208,19 @@ function shouldExcludeUrl(
     if (pattern.startsWith("starts_")) {
       const urlPattern = pattern.substring(7).toLowerCase();
       if (currentUrlLower.startsWith(urlPattern)) {
-        console.log(`[SpeedyVideo] URL excluded by pattern: ${pattern}`);
+        // Removed console statement
         return true;
       }
     } else if (pattern.startsWith("contains_")) {
       const searchTerm = pattern.substring(9).toLowerCase();
       if (currentUrlLower.includes(searchTerm)) {
-        console.log(`[SpeedyVideo] URL excluded by pattern: ${pattern}`);
+        // Removed console statement
         return true;
       }
     } else if (pattern.startsWith("exact_")) {
       const exactUrl = pattern.substring(6).toLowerCase();
       if (currentUrlLower === exactUrl) {
-        console.log(`[SpeedyVideo] URL excluded by exact match: ${pattern}`);
+        // Removed console statement
         return true;
       }
     }
@@ -279,7 +248,7 @@ function findAllMediaElements(root: Document | ShadowRoot): HTMLMediaElement[] {
       root.querySelectorAll<HTMLMediaElement>(videoSelectors)
     );
   } catch (e) {
-    console.warn("[SpeedyVideo] Could not query selector on root", root, e);
+    // Removed console statement
   }
 
   // Find shadow hosts in the current root and recurse
@@ -358,9 +327,6 @@ function observeMediaChanges(speed: number, source: string = "global"): void {
       });
 
       if (hasNewVideos) {
-        console.log(
-          `[SpeedyVideo] Applied speed ${speedManager.getCurrentSpeed()} to videos entering viewport`
-        );
       }
     },
     {
@@ -393,9 +359,7 @@ function observeMediaChanges(speed: number, source: string = "global"): void {
       ).length;
 
       if (currentVideoCount !== lastVideoCount) {
-        console.log(
-          `[SpeedyVideo] Periodic check: video count changed from ${lastVideoCount} to ${currentVideoCount}`
-        );
+        // Removed console statement
         speedManager.setSpeed(
           speedManager.getCurrentSpeed(),
           speedManager.getCurrentSource()
@@ -430,7 +394,7 @@ function observeMediaChanges(speed: number, source: string = "global"): void {
     if (window.location.hostname.toLowerCase().includes("reddit.com")) {
       // Listen for Reddit's custom events if available
       document.addEventListener("reddit:media-loaded", () => {
-        console.log("[SpeedyVideo] Reddit media loaded event detected");
+        // Removed console statement
         speedManager.setSpeed(
           speedManager.getCurrentSpeed(),
           speedManager.getCurrentSource()
@@ -496,7 +460,7 @@ function determineAndApplySpeed(
 
   // Priority 2: Blacklisted domain
   if (isCurrentDomainBlacklisted(result.blacklistDomains)) {
-    console.log("[SpeedyVideo] Domain is blacklisted");
+    // Removed console statement
     speedManager.setDomainRuleActive(false);
     return { speed: 1.0, source: "blacklisted" };
   }
@@ -505,7 +469,7 @@ function determineAndApplySpeed(
   if (tabId && result[`pinnedSpeed_${tabId}`] !== undefined) {
     speed = parseFloat(result[`pinnedSpeed_${tabId}`]);
     source = "pinned";
-    console.log(`[SpeedyVideo] Using pinned speed: ${speed}x`);
+    // Removed console statement
     speedManager.setDomainRuleActive(false);
     return { speed, source };
   }
@@ -523,21 +487,21 @@ function determineAndApplySpeed(
   if (domainRule && !domainRuleDisabled) {
     speed = domainRule.speed;
     source = "domain";
-    console.log(`[SpeedyVideo] Using domain rule for ${hostname}: ${speed}x`);
+    // Removed console statement
     speedManager.setDomainRuleActive(true);
     return { speed, source };
   }
 
   // Priority 5: URL exclusions
   if (shouldExcludeUrl(result.websitesAddedToUrlConditionsExclusion, false)) {
-    console.log("[SpeedyVideo] URL is excluded");
+    // Removed console statement
     speedManager.setDomainRuleActive(false);
     return { speed: 1.0, source: "excluded" };
   }
 
   // Priority 6: Global speed (fallback)
   speed = result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0;
-  console.log(`[SpeedyVideo] Using global speed: ${speed}x`);
+  // Removed console statement
   speedManager.setDomainRuleActive(false);
 
   return { speed, source };
@@ -599,9 +563,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.storage.local.get(["extensionState"], (result) => {
       if (result.extensionState === false) {
         // Block speed update if globally disabled
-        console.log(
-          "[SpeedyVideo] Speed update blocked - extension is disabled"
-        );
+        // Removed console statement
         sendResponse({ status: "blocked - extension disabled" });
         return;
       }
@@ -609,10 +571,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const speed = message.speed ?? 1;
       const source = message.source ?? "manual";
 
-      console.log(`[SpeedyVideo] Received UPDATE_SPEED: ${speed}x (${source})`);
-
       // Apply the speed directly - domain rule updates are handled by popup/SpeedButtons
-      console.log(`[SpeedyVideo] Applying requested speed: ${speed}x`);
+      // Removed console statement
 
       // Update the current speed state
       speedManager.setSpeed(speed, source);
@@ -656,7 +616,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       scrollTimeoutId = undefined;
     }
 
-    console.log("[SpeedyVideo] Extension disabled on this tab.");
+    // Removed console statement
     sendResponse({ status: "disabled" });
   } else if (message.type === "ENABLE_SPEEDYVIDEO") {
     // Get current tab ID and check for pinned speed first
@@ -668,13 +628,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     try {
       localStorage.removeItem("speedyVideoLastSpeed");
       localStorage.removeItem("speedyVideoLastSource");
-      console.log("[SpeedyVideo] Cleaned up legacy localStorage data");
-    } catch (error) {
-      console.debug(
-        "[SpeedyVideo] Could not clean localStorage:",
-        (error as Error).message
-      );
-    }
+    } catch (error) {}
     sendResponse({ status: "cleanup completed" });
   }
 
@@ -689,9 +643,7 @@ function safeRuntimeMessage(
 ) {
   // If extension context is lost, immediately use fallback
   if (extensionContextLost) {
-    console.warn(
-      "[SpeedyVideo] Extension context lost - using fallback immediately"
-    );
+    // Removed console statement
     if (callback) callback(null);
     return;
   }
@@ -699,11 +651,6 @@ function safeRuntimeMessage(
   try {
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
-        console.warn(
-          `[SpeedyVideo] Runtime error (attempt ${retryCount + 1}):`,
-          chrome.runtime.lastError.message
-        );
-
         // Check if this is a context invalidation error
         if (
           chrome.runtime.lastError?.message?.includes(
@@ -738,7 +685,7 @@ function safeRuntimeMessage(
       }
     });
   } catch (error) {
-    console.error("[SpeedyVideo] Error sending runtime message:", error);
+    // Removed console statement
     // Any error here likely means extension context is invalid
     extensionContextLost = true;
     switchToStandaloneMode();
@@ -750,29 +697,22 @@ function safeRuntimeMessage(
 
 // Helper function to find domain rule for hostname (same logic as popup)
 function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
-  console.log("[Content] findDomainRuleForHostname called with:", {
-    domainSpeeds,
-    hostname,
-    domainSpeedsCount: domainSpeeds?.length || 0,
-  });
+  // Removed console statement
 
   if (!Array.isArray(domainSpeeds) || domainSpeeds.length === 0) {
-    console.log("[Content] No domain speeds available");
+    // Removed console statement
     return null;
   }
 
   const hostnameNormalized = hostname.toLowerCase();
-  console.log("[Content] Normalized hostname:", hostnameNormalized);
+  // Removed console statement
 
   // Try exact match first
   for (const rule of domainSpeeds) {
     const ruleHostname = rule.domain.toLowerCase();
-    console.log("[Content] Checking exact match:", {
-      ruleHostname,
-      hostnameNormalized,
-    });
+    // Removed console statement
     if (hostnameNormalized === ruleHostname) {
-      console.log("[Content] Found exact match:", rule);
+      // Removed console statement
       return rule;
     }
   }
@@ -787,25 +727,21 @@ function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
       ? ruleHostname.substring(4)
       : ruleHostname;
 
-    console.log("[Content] Checking www variations:", {
-      ruleHostname,
-      hostnameNoWww,
-      ruleNoWww,
-    });
+    // Removed console statement
 
     if (hostnameNoWww === ruleNoWww) {
-      console.log("[Content] Found www match:", rule);
+      // Removed console statement
       return rule;
     }
 
     // Check subdomain
     if (hostnameNormalized.endsWith("." + ruleNoWww)) {
-      console.log("[Content] Found subdomain match:", rule);
+      // Removed console statement
       return rule;
     }
   }
 
-  console.log("[Content] No domain rule found for:", hostname);
+  // Removed console statement
   return null;
 }
 
@@ -813,7 +749,7 @@ function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
 function getCurrentTabAndApplySpeed(): void {
   safeRuntimeMessage({ type: "GET_CURRENT_TAB" }, (response) => {
     if (!response) {
-      console.warn("[SpeedyVideo] Runtime error - using fallback");
+      // Removed console statement
       chrome.storage.local.get(["selectedSpeed"], (result) => {
         const speed = (result.selectedSpeed as string)
           ? parseFloat(result.selectedSpeed as string)
@@ -853,7 +789,7 @@ function getCurrentTabAndApplySpeed(): void {
 function handleUrlChange(): void {
   const newUrl = window.location.href;
   if (newUrl !== currentUrl) {
-    console.log(`[SpeedyVideo] URL changed from ${currentUrl} to ${newUrl}`);
+    // Removed console statement
     currentUrl = newUrl;
 
     // Re-determine and apply the correct speed for the new URL
