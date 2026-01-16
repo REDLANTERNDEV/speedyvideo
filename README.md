@@ -166,9 +166,9 @@ We welcome contributions! Please:
         [Report bugs or request features](https://github.com/REDLANTERNDEV/speedyvideo/issues)
         [GitHub Issues](https://github.com/REDLANTERNDEV/speedyvideo/issues)
 
-    This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+    This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
-**Note on Assets**: Logos, icons, and visual assets are not covered under the MIT license and may not be reused without permission.
+**Note on Assets**: Logos, icons, and visual assets are not covered under the GNU General Public License v3.0 and may not be reused without permission.
 
 ## 🙏 Credits
 
