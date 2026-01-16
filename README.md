@@ -146,11 +146,11 @@ speedyvideo/
 
 ## 🐛 Reporting Issues
 
-Found a bug? Please open an [issue on GitHub](https://github.com/yourusername/speedyvideo/issues) with:
+Found a bug? Please open an [issue on GitHub](https://github.com/REDLANTERNDEV/speedyvideo/issues) with:
 
 ## 💡 Feature Requests
 
-Have an idea? Share your suggestions by opening a [GitHub issue](https://github.com/yourusername/speedyvideo/issues) labeled as "enhancement".
+Have an idea? Share your suggestions by opening a [GitHub issue](https://github.com/REDLANTERNDEV/speedyvideo/issues) labeled as "enhancement".
 
 ## 🤝 Contributing
 
@@ -176,7 +176,7 @@ SpeedyVideo was created by passionate developers who love faster video playback!
 
 ## 📞 Support
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/yourusername/speedyvideo/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/REDLANTERNDEV/speedyvideo/issues)
 - **Privacy Concerns**: See [PRIVACY.md](PRIVACY.md)
 - **Legal Questions**: See [TERMS.md](TERMS.md)
 
