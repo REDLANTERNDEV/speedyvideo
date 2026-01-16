@@ -2,9 +2,9 @@
   "name": "SpeedyVideo - Video Speed Controller",
   "version": "1.0.0",
   "manifest_version": 3,
-  "description": "Control playback speed of videos on any website. Speed up, slow down, or keep your videos at normal speed with an easy-to-use interface.",
+  "description": "Control video playback speed on any site with an easy interface.",
   "author": "SpeedyVideo Contributors",
-  "homepage_url": "https://github.com/yourusername/speedyvideo",
+  "homepage_url": "https://github.com/REDLANTERNDEV/speedyvideo",
   "permissions": ["storage", "tabs", "scripting", "idle"],
   "host_permissions": ["<all_urls>"],
   "background": {
