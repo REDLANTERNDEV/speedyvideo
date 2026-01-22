@@ -5,15 +5,23 @@
   "description": "Control video playback speed on any site with an easy interface.",
   "author": "SpeedyVideo Contributors",
   "homepage_url": "https://github.com/REDLANTERNDEV/speedyvideo",
-  "permissions": ["storage", "tabs", "idle"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
