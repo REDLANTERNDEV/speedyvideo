@@ -19,7 +19,7 @@ A powerful Chrome extension that gives you complete control over video playback 
 
 ### From Chrome Web Store
 
-1. Visit the [Chrome Web Store](https://chrome.google.com/webstore)
+1. Visit the [Chrome Web Store](https://chromewebstore.google.com/detail/speedyvideo-video-speed-c/kmaijgcfjcddlblgjjanjcjmancmpfnj)
 2. Search for "SpeedyVideo"
 3. Click "Add to Chrome"
 4. Confirm the permissions and enjoy!
