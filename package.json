@@ -18,13 +18,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@types/chrome": "^0.1.32",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "@types/chrome": "^0.1.36",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
     "eslint": "^9.39.2",
@@ -33,6 +33,6 @@
     "globals": "^16.5.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.50.0",
-    "vite": "^7.3.0"
+    "vite": "^7.3.1"
   }
 }
