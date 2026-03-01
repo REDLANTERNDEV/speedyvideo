@@ -1,7 +1,7 @@
 {
   "name": "speedyvideo",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Chrome extension to control video playback speed on any website",
   "author": "SpeedyVideo Contributors",
   "license": "MIT",

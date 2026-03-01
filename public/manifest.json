@@ -1,27 +1,19 @@
 {
   "name": "SpeedyVideo - Video Speed Controller",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "manifest_version": 3,
   "description": "Control video playback speed on any site with an easy interface.",
   "author": "SpeedyVideo Contributors",
   "homepage_url": "https://github.com/REDLANTERNDEV/speedyvideo",
-  "permissions": [
-    "storage"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content.js"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
       "run_at": "document_start",
       "all_frames": true
     }
