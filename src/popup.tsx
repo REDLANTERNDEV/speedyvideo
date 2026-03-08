@@ -316,12 +316,9 @@ const Popup = () => {
         source: "popup-sync", // Indicate this is a popup synchronization
       });
     }
-    // When extension is disabled, ensure content script knows
-    if (tabId !== null && isDisabled) {
-      chrome.tabs.sendMessage(tabId, {
-        type: "DISABLE_SPEEDYVIDEO",
-      });
-    }
+    // Note: DISABLE_SPEEDYVIDEO is sent by handleDisable() when user clicks the button.
+    // We do NOT re-send it here to avoid resetting native speed controls (e.g. YouTube's
+    // built-in speed setting) that the user may have changed while the extension was off.
   }, [elementSpeed, tabId, isDisabled]);
 
   if (showSettings) {

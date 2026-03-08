@@ -11,6 +11,11 @@ class SpeedManager {
     isDomainRuleActive: false,
   };
 
+  // Track elements we've already attached listeners to, avoiding duplicates
+  private readonly watchedElements = new WeakSet<HTMLMediaElement>();
+  // Guard flag to prevent re-entrancy when we ourselves change playbackRate
+  private isApplyingSpeed: boolean = false;
+
   setSpeed(speed: number, source: string = "unknown") {
     this.currentSpeed = speed;
     this.currentSource = source;
@@ -29,10 +34,22 @@ class SpeedManager {
   }
 
   setEnabled(enabled: boolean) {
+    const wasEnabled = this.isEnabled;
     this.isEnabled = enabled;
-    if (!enabled) {
-      this.setSpeed(1.0, "disabled");
+    if (!enabled && wasEnabled) {
+      // Only reset media to 1.0 on the FIRST disable call.
+      // If already disabled, don't touch media — user may have set a native speed.
+      this.resetAllMedia();
     }
+  }
+
+  private resetAllMedia() {
+    const mediaElements = findAllMediaElements(document);
+    this.isApplyingSpeed = true;
+    mediaElements.forEach((media) => {
+      media.playbackRate = 1.0;
+    });
+    this.isApplyingSpeed = false;
   }
 
   isSpeedEnabled(): boolean {
@@ -49,17 +66,40 @@ class SpeedManager {
 
   private applyToAllMedia() {
     const mediaElements = findAllMediaElements(document);
-    let updatedCount = 0;
 
+    this.isApplyingSpeed = true;
     mediaElements.forEach((media) => {
+      // Attach per-element listeners the first time we see this element
+      if (!this.watchedElements.has(media)) {
+        this.watchedElements.add(media);
+
+        // Re-enforce speed if the site resets it (e.g. after src is set or player init)
+        media.addEventListener("ratechange", () => {
+          if (this.isApplyingSpeed) return; // we caused this change, ignore
+          if (!this.isEnabled) return; // blacklisted / disabled, leave native controls alone
+          if (media.playbackRate !== this.currentSpeed) {
+            this.isApplyingSpeed = true;
+            media.playbackRate = this.currentSpeed;
+            this.isApplyingSpeed = false;
+          }
+        });
+
+        // Re-apply speed after the browser resets playbackRate on metadata load
+        media.addEventListener("loadedmetadata", () => {
+          if (!this.isEnabled) return;
+          if (media.playbackRate !== this.currentSpeed) {
+            this.isApplyingSpeed = true;
+            media.playbackRate = this.currentSpeed;
+            this.isApplyingSpeed = false;
+          }
+        });
+      }
+
       if (media.playbackRate !== this.currentSpeed) {
         media.playbackRate = this.currentSpeed;
-        updatedCount++;
       }
     });
-
-    if (updatedCount > 0) {
-    }
+    this.isApplyingSpeed = false;
   }
 
   private saveMinimalState() {
@@ -93,38 +133,35 @@ class SpeedManager {
       // Silent cleanup failure - not critical
     }
   }
-} // Initialize the speed manager
+}
+
+// Initialize the speed manager
 const speedManager = new SpeedManager();
 
 let mediaObserver: MutationObserver | null = null;
 let intersectionObserver: IntersectionObserver | null = null;
 let scrollTimeoutId: number | undefined;
-let debounceTimerId: number | undefined; // For debouncing MutationObserver callbacks
+let debounceTimerId: number | undefined;
 let connectionRetryCount = 0;
 const MAX_RETRY_COUNT = 3;
-let extensionContextLost = false; // Track if extension context is lost
-let lastVideoCount = 0; // Track video count changes
-let videoCheckInterval: number | undefined; // For periodic video checks
+let extensionContextLost = false;
+let lastVideoCount = 0;
+let videoCheckInterval: number | undefined;
+let urlCheckInterval: number | undefined;
+let scrollHandler: (() => void) | null = null;
 
 // Global error handler for unhandled extension context errors
 window.addEventListener("error", (event) => {
   if (event.error?.message?.includes("Extension context invalidated")) {
-    // Removed console statement
     extensionContextLost = true;
-    // Switch to standalone mode
     switchToStandaloneMode();
-    event.preventDefault(); // Prevent the error from being logged
+    event.preventDefault();
   }
 });
 
 // Function to switch to standalone mode when extension context is lost
 function switchToStandaloneMode() {
-  // Removed console statement
-
-  // Use session fallback or default speed
   const fallbackSpeed = speedManager.getCurrentSpeed() || 1.0;
-
-  // Removed console statement
   initializePlaybackRate(fallbackSpeed, "standalone");
   observeMediaChanges(fallbackSpeed, "standalone");
 }
@@ -164,17 +201,14 @@ function isCurrentDomainBlacklisted(blacklistDomains: any[]): boolean {
 
     const blacklistedDomain = item.domain.toLowerCase();
 
-    // Check exact match
     if (currentHostname === blacklistedDomain) {
       return true;
     }
 
-    // Check if current hostname is a subdomain of blacklisted domain
     if (currentHostname.endsWith("." + blacklistedDomain)) {
       return true;
     }
 
-    // Check if blacklisted domain includes www and current doesn't (or vice versa)
     const currentNoWww = currentHostname.startsWith("www.")
       ? currentHostname.substring(4)
       : currentHostname;
@@ -193,11 +227,9 @@ function isCurrentDomainBlacklisted(blacklistDomains: any[]): boolean {
 // Helper function to check URL exclusions with domain rule priority
 function shouldExcludeUrl(
   exclusionPatterns: string[],
-  hasUserDomainRule: boolean = false
+  hasUserDomainRule: boolean = false,
 ): boolean {
-  // If user has set a custom domain rule, don't exclude
   if (hasUserDomainRule) {
-    // Removed console statement
     return false;
   }
 
@@ -208,19 +240,16 @@ function shouldExcludeUrl(
     if (pattern.startsWith("starts_")) {
       const urlPattern = pattern.substring(7).toLowerCase();
       if (currentUrlLower.startsWith(urlPattern)) {
-        // Removed console statement
         return true;
       }
     } else if (pattern.startsWith("contains_")) {
       const searchTerm = pattern.substring(9).toLowerCase();
       if (currentUrlLower.includes(searchTerm)) {
-        // Removed console statement
         return true;
       }
     } else if (pattern.startsWith("exact_")) {
       const exactUrl = pattern.substring(6).toLowerCase();
       if (currentUrlLower === exactUrl) {
-        // Removed console statement
         return true;
       }
     }
@@ -229,26 +258,25 @@ function shouldExcludeUrl(
   return false;
 }
 
-// New function to recursively find media elements, including in Shadow DOM
+// Recursively find media elements, including in Shadow DOM
 function findAllMediaElements(root: Document | ShadowRoot): HTMLMediaElement[] {
   const videoSelectors = [
     "video",
     "audio",
-    'video[data-testid*="video"]', // Reddit video elements
-    'div[data-click-id="media"] video', // Reddit media containers
-    "shreddit-player video", // Reddit's custom player
-    '[data-adclicklocation*="media"] video', // Reddit ad videos
+    'video[data-testid*="video"]',
+    'div[data-click-id="media"] video',
+    "shreddit-player video",
+    '[data-adclicklocation*="media"] video',
   ].join(", ");
 
   let mediaElements: HTMLMediaElement[] = [];
 
-  // Find media in the current root
   try {
     mediaElements = Array.from(
-      root.querySelectorAll<HTMLMediaElement>(videoSelectors)
+      root.querySelectorAll<HTMLMediaElement>(videoSelectors),
     );
   } catch (e) {
-    // Removed console statement
+    // Silent failure
   }
 
   // Find shadow hosts in the current root and recurse
@@ -256,7 +284,7 @@ function findAllMediaElements(root: Document | ShadowRoot): HTMLMediaElement[] {
   shadowHosts.forEach((host) => {
     if (host.shadowRoot) {
       mediaElements = mediaElements.concat(
-        findAllMediaElements(host.shadowRoot)
+        findAllMediaElements(host.shadowRoot),
       );
     }
   });
@@ -266,9 +294,14 @@ function findAllMediaElements(root: Document | ShadowRoot): HTMLMediaElement[] {
 
 function initializePlaybackRate(
   speed: number,
-  source: string = "global"
+  source: string = "global",
 ): void {
-  speedManager.setSpeed(speed, source);
+  if (!speedManager.isSpeedEnabled()) {
+    // Still update internal state so the manager knows the intended speed,
+    // but don't attach any DOM listeners or force playbackRate.
+    speedManager.setSpeed(speed, source);
+    return;
+  }
 
   if (
     document.readyState === "complete" ||
@@ -276,24 +309,52 @@ function initializePlaybackRate(
   ) {
     speedManager.setSpeed(speed, source);
   } else {
-    document.addEventListener("DOMContentLoaded", () =>
-      speedManager.setSpeed(speed, source)
+    // Apply immediately in case some media already exists at document_start
+    speedManager.setSpeed(speed, source);
+    // Re-apply once DOM is ready so late-injected elements are caught
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => speedManager.setSpeed(speed, source),
+      { once: true },
     );
+  }
+}
+
+// Shared cleanup for all active observers, intervals, and listeners
+function cleanupAllObservers(): void {
+  if (mediaObserver) {
+    mediaObserver.disconnect();
+    mediaObserver = null;
+  }
+  if (intersectionObserver) {
+    intersectionObserver.disconnect();
+    intersectionObserver = null;
+  }
+  if (videoCheckInterval) {
+    clearInterval(videoCheckInterval);
+    videoCheckInterval = undefined;
+  }
+  if (scrollTimeoutId) {
+    clearTimeout(scrollTimeoutId);
+    scrollTimeoutId = undefined;
+  }
+  if (debounceTimerId) {
+    clearTimeout(debounceTimerId);
+    debounceTimerId = undefined;
+  }
+  if (scrollHandler) {
+    window.removeEventListener("scroll", scrollHandler);
+    scrollHandler = null;
   }
 }
 
 function observeMediaChanges(speed: number, source: string = "global"): void {
   speedManager.setSpeed(speed, source);
 
-  if (mediaObserver) {
-    mediaObserver.disconnect();
-  }
-  if (intersectionObserver) {
-    intersectionObserver.disconnect();
-  }
-  if (videoCheckInterval) {
-    clearInterval(videoCheckInterval);
-  }
+  // Always tear down existing observers first
+  cleanupAllObservers();
+
+  if (!speedManager.isSpeedEnabled()) return;
 
   // Main mutation observer with reduced debounce for faster response
   mediaObserver = new MutationObserver(() => {
@@ -301,38 +362,62 @@ function observeMediaChanges(speed: number, source: string = "global"): void {
     debounceTimerId = window.setTimeout(() => {
       speedManager.setSpeed(
         speedManager.getCurrentSpeed(),
-        speedManager.getCurrentSource()
+        speedManager.getCurrentSource(),
       );
     }, 50);
   });
-  mediaObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ["src", "autoplay", "preload"],
-  });
+
+  // In iframes at document_start, document.body may not exist yet.
+  // Wait for it before attaching the observer.
+  function attachObserver() {
+    if (document.body) {
+      mediaObserver!.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["src", "autoplay", "preload"],
+      });
+    } else {
+      // Body not ready (iframe at document_start) - retry when DOM is ready
+      document.addEventListener(
+        "DOMContentLoaded",
+        () => {
+          if (document.body && mediaObserver) {
+            mediaObserver.observe(document.body, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+              attributeFilter: ["src", "autoplay", "preload"],
+            });
+            // Re-apply speed to catch any media elements added before observer attached
+            speedManager.setSpeed(
+              speedManager.getCurrentSpeed(),
+              speedManager.getCurrentSource(),
+            );
+          }
+        },
+        { once: true },
+      );
+    }
+  }
+  attachObserver();
 
   // Intersection observer for videos entering viewport
   intersectionObserver = new IntersectionObserver(
     (entries) => {
-      let hasNewVideos = false;
       entries.forEach((entry) => {
         if (entry.isIntersecting && entry.target instanceof HTMLVideoElement) {
           const video = entry.target;
           if (video.playbackRate !== speedManager.getCurrentSpeed()) {
             video.playbackRate = speedManager.getCurrentSpeed();
-            hasNewVideos = true;
           }
         }
       });
-
-      if (hasNewVideos) {
-      }
     },
     {
-      threshold: 0.1, // Trigger when 10% of video is visible
-      rootMargin: "50px", // Start observing 50px before video enters viewport
-    }
+      threshold: 0.1,
+      rootMargin: "50px",
+    },
   );
 
   // Observe all existing videos
@@ -341,10 +426,11 @@ function observeMediaChanges(speed: number, source: string = "global"): void {
     intersectionObserver?.observe(video);
   });
 
-  // Periodic check for Reddit and other infinite scroll sites
-  if (isInfiniteScrollSite()) {
+  // Periodic check for infinite scroll sites
+  const isInfiniteScroll = isInfiniteScrollSite();
+
+  if (isInfiniteScroll) {
     videoCheckInterval = window.setInterval(() => {
-      // Enhanced video detection for Reddit
       const videoSelectors = [
         "video",
         "audio",
@@ -355,14 +441,15 @@ function observeMediaChanges(speed: number, source: string = "global"): void {
       ];
 
       const currentVideoCount = document.querySelectorAll(
-        videoSelectors.join(", ")
+        videoSelectors.join(", "),
       ).length;
 
       if (currentVideoCount !== lastVideoCount) {
-        // Removed console statement
+        lastVideoCount = currentVideoCount;
+
         speedManager.setSpeed(
           speedManager.getCurrentSpeed(),
-          speedManager.getCurrentSource()
+          speedManager.getCurrentSource(),
         );
 
         // Add new videos to intersection observer
@@ -373,48 +460,41 @@ function observeMediaChanges(speed: number, source: string = "global"): void {
           }
         });
       }
-    }, 1000); // Check every second for new videos
-  }
+    }, 1000);
 
-  // Scroll event listener for immediate response on Reddit-like sites
-  if (isInfiniteScrollSite()) {
-    const handleScroll = () => {
+    // Scroll event listener for immediate response on infinite-scroll sites
+    scrollHandler = () => {
       clearTimeout(scrollTimeoutId);
       scrollTimeoutId = window.setTimeout(() => {
         speedManager.setSpeed(
           speedManager.getCurrentSpeed(),
-          speedManager.getCurrentSource()
+          speedManager.getCurrentSource(),
         );
       }, 200);
     };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("scroll", scrollHandler, { passive: true });
 
     // Reddit-specific event listeners for better video detection
     if (window.location.hostname.toLowerCase().includes("reddit.com")) {
-      // Listen for Reddit's custom events if available
       document.addEventListener("reddit:media-loaded", () => {
-        // Removed console statement
         speedManager.setSpeed(
           speedManager.getCurrentSpeed(),
-          speedManager.getCurrentSource()
+          speedManager.getCurrentSource(),
         );
       });
 
-      // Listen for changes to Reddit's post containers
       const redditPostObserver = new MutationObserver(() => {
         clearTimeout(debounceTimerId);
         debounceTimerId = window.setTimeout(() => {
           speedManager.setSpeed(
             speedManager.getCurrentSpeed(),
-            speedManager.getCurrentSource()
+            speedManager.getCurrentSource(),
           );
         }, 100);
       });
 
-      // Observe Reddit-specific containers
       const redditContainers = document.querySelectorAll(
-        '[data-testid*="post"], shreddit-post, div[data-click-id*="background"]'
+        '[data-testid*="post"], shreddit-post, div[data-click-id*="background"]',
       );
       redditContainers.forEach((container) => {
         redditPostObserver.observe(container, {
@@ -445,7 +525,7 @@ function isInfiniteScrollSite(): boolean {
 // Simplified systematic speed determination (no persistent overrides)
 function determineAndApplySpeed(
   result: any,
-  tabId: number | null = null
+  tabId: number | null = null,
 ): { speed: number; source: string } {
   let speed = 1.0;
   let source = "global";
@@ -460,7 +540,7 @@ function determineAndApplySpeed(
 
   // Priority 2: Blacklisted domain
   if (isCurrentDomainBlacklisted(result.blacklistDomains)) {
-    // Removed console statement
+    speedManager.setEnabled(false);
     speedManager.setDomainRuleActive(false);
     return { speed: 1.0, source: "blacklisted" };
   }
@@ -469,7 +549,6 @@ function determineAndApplySpeed(
   if (tabId && result[`pinnedSpeed_${tabId}`] !== undefined) {
     speed = parseFloat(result[`pinnedSpeed_${tabId}`]);
     source = "pinned";
-    // Removed console statement
     speedManager.setDomainRuleActive(false);
     return { speed, source };
   }
@@ -478,30 +557,27 @@ function determineAndApplySpeed(
   const hostname = window.location.hostname.toLowerCase();
   const domainRule = findDomainRuleForHostname(
     result.domainSpeeds || [],
-    hostname
+    hostname,
   );
 
-  // Check if user has disabled domain rule for this specific tab
   const domainRuleDisabled = tabId && result[`domainRuleDisabled_${tabId}`];
 
   if (domainRule && !domainRuleDisabled) {
     speed = domainRule.speed;
     source = "domain";
-    // Removed console statement
     speedManager.setDomainRuleActive(true);
     return { speed, source };
   }
 
   // Priority 5: URL exclusions
   if (shouldExcludeUrl(result.websitesAddedToUrlConditionsExclusion, false)) {
-    // Removed console statement
+    speedManager.setEnabled(false);
     speedManager.setDomainRuleActive(false);
     return { speed: 1.0, source: "excluded" };
   }
 
   // Priority 6: Global speed (fallback)
   speed = result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0;
-  // Removed console statement
   speedManager.setDomainRuleActive(false);
 
   return { speed, source };
@@ -519,51 +595,48 @@ chrome.storage.local.get(
   (result) => {
     speedManager.loadMinimalState();
 
-    // Get current tab ID and apply appropriate speed
     safeRuntimeMessage({ type: "GET_CURRENT_TAB" }, (response) => {
       const tabId = response?.tabId || null;
 
       if (tabId) {
         currentTabId = tabId;
-        // Get tab-specific data (pinned speeds and domain rule disabled status)
         chrome.storage.local.get(
           [`pinnedSpeed_${tabId}`, `domainRuleDisabled_${tabId}`],
           (tabResult) => {
             const combinedResult = { ...result, ...tabResult };
             const { speed, source } = determineAndApplySpeed(
               combinedResult,
-              tabId
+              tabId,
             );
 
             initializePlaybackRate(speed, source);
             observeMediaChanges(speed, source);
-          }
+          },
         );
       } else {
-        // Fallback without tab-specific features
         const { speed, source } = determineAndApplySpeed(result);
         initializePlaybackRate(speed, source);
         observeMediaChanges(speed, source);
       }
     });
 
-    // Setup URL change listeners for SPAs
     setupUrlChangeListeners();
 
-    // Cleanup on page unload
     window.addEventListener("beforeunload", () => {
+      cleanupAllObservers();
+      if (urlCheckInterval) {
+        clearInterval(urlCheckInterval);
+        urlCheckInterval = undefined;
+      }
       speedManager.cleanup();
     });
-  }
+  },
 );
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "UPDATE_SPEED") {
-    // Always check current extension state before applying speed changes
     chrome.storage.local.get(["extensionState"], (result) => {
       if (result.extensionState === false) {
-        // Block speed update if globally disabled
-        // Removed console statement
         sendResponse({ status: "blocked - extension disabled" });
         return;
       }
@@ -571,13 +644,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const speed = message.speed ?? 1;
       const source = message.source ?? "manual";
 
-      // Apply the speed directly - domain rule updates are handled by popup/SpeedButtons
-      // Removed console statement
-
-      // Update the current speed state
       speedManager.setSpeed(speed, source);
-
-      // Apply to media elements
       initializePlaybackRate(speed, source);
       observeMediaChanges(speed, source);
 
@@ -587,7 +654,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         source,
       });
     });
-    return true; // Indicates that sendResponse will be called asynchronously
+    return true;
   } else if (message.type === "GET_CURRENT_SPEED") {
     sendResponse({
       currentSpeed: speedManager.getCurrentSpeed(),
@@ -597,34 +664,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   } else if (message.type === "DISABLE_SPEEDYVIDEO") {
     speedManager.setEnabled(false);
-
-    // Clean up all observers and intervals
-    if (mediaObserver) {
-      mediaObserver.disconnect();
-      mediaObserver = null;
-    }
-    if (intersectionObserver) {
-      intersectionObserver.disconnect();
-      intersectionObserver = null;
-    }
-    if (videoCheckInterval) {
-      clearInterval(videoCheckInterval);
-      videoCheckInterval = undefined;
-    }
-    if (scrollTimeoutId) {
-      clearTimeout(scrollTimeoutId);
-      scrollTimeoutId = undefined;
-    }
-
-    // Removed console statement
+    cleanupAllObservers();
     sendResponse({ status: "disabled" });
   } else if (message.type === "ENABLE_SPEEDYVIDEO") {
-    // Get current tab ID and check for pinned speed first
     getCurrentTabAndApplySpeed();
     sendResponse({ status: "enabled" });
     return true;
   } else if (message.type === "CLEANUP_LEGACY_DATA") {
-    // Clean up old localStorage entries for privacy
     try {
       localStorage.removeItem("speedyVideoLastSpeed");
       localStorage.removeItem("speedyVideoLastSource");
@@ -632,18 +678,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ status: "cleanup completed" });
   }
 
-  return false; // No message handled by this listener
+  return false;
 });
 
 // Helper function to safely send messages with retry
 function safeRuntimeMessage(
   message: any,
   callback?: (response: any) => void,
-  retryCount = 0
+  retryCount = 0,
 ) {
-  // If extension context is lost, immediately use fallback
   if (extensionContextLost) {
-    // Removed console statement
     if (callback) callback(null);
     return;
   }
@@ -651,10 +695,9 @@ function safeRuntimeMessage(
   try {
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
-        // Check if this is a context invalidation error
         if (
           chrome.runtime.lastError?.message?.includes(
-            "Extension context invalidated"
+            "Extension context invalidated",
           )
         ) {
           extensionContextLost = true;
@@ -664,29 +707,28 @@ function safeRuntimeMessage(
         }
 
         if (retryCount < MAX_RETRY_COUNT) {
-          connectionRetryCount++; // Track retry attempts
-          // Retry after a short delay
-          setTimeout(() => {
-            safeRuntimeMessage(message, callback, retryCount + 1);
-          }, 1000 * (retryCount + 1)); // Exponential backoff
+          connectionRetryCount++;
+          setTimeout(
+            () => {
+              safeRuntimeMessage(message, callback, retryCount + 1);
+            },
+            1000 * (retryCount + 1),
+          );
           return;
         }
 
-        // If retries exhausted, use fallback
         if (callback) {
           callback(null);
         }
         return;
       }
 
-      connectionRetryCount = 0; // Reset on success
+      connectionRetryCount = 0;
       if (callback) {
         callback(response);
       }
     });
   } catch (error) {
-    // Removed console statement
-    // Any error here likely means extension context is invalid
     extensionContextLost = true;
     switchToStandaloneMode();
     if (callback) {
@@ -697,22 +739,16 @@ function safeRuntimeMessage(
 
 // Helper function to find domain rule for hostname (same logic as popup)
 function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
-  // Removed console statement
-
   if (!Array.isArray(domainSpeeds) || domainSpeeds.length === 0) {
-    // Removed console statement
     return null;
   }
 
   const hostnameNormalized = hostname.toLowerCase();
-  // Removed console statement
 
   // Try exact match first
   for (const rule of domainSpeeds) {
     const ruleHostname = rule.domain.toLowerCase();
-    // Removed console statement
     if (hostnameNormalized === ruleHostname) {
-      // Removed console statement
       return rule;
     }
   }
@@ -727,21 +763,15 @@ function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
       ? ruleHostname.substring(4)
       : ruleHostname;
 
-    // Removed console statement
-
     if (hostnameNoWww === ruleNoWww) {
-      // Removed console statement
       return rule;
     }
 
-    // Check subdomain
     if (hostnameNormalized.endsWith("." + ruleNoWww)) {
-      // Removed console statement
       return rule;
     }
   }
 
-  // Removed console statement
   return null;
 }
 
@@ -749,7 +779,6 @@ function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
 function getCurrentTabAndApplySpeed(): void {
   safeRuntimeMessage({ type: "GET_CURRENT_TAB" }, (response) => {
     if (!response) {
-      // Removed console statement
       chrome.storage.local.get(["selectedSpeed"], (result) => {
         const speed = (result.selectedSpeed as string)
           ? parseFloat(result.selectedSpeed as string)
@@ -775,11 +804,11 @@ function getCurrentTabAndApplySpeed(): void {
         (result) => {
           const { speed, source } = determineAndApplySpeed(
             result,
-            currentTabId
+            currentTabId,
           );
           initializePlaybackRate(speed, source);
           observeMediaChanges(speed, source);
-        }
+        },
       );
     }
   });
@@ -789,26 +818,21 @@ function getCurrentTabAndApplySpeed(): void {
 function handleUrlChange(): void {
   const newUrl = window.location.href;
   if (newUrl !== currentUrl) {
-    // Removed console statement
     currentUrl = newUrl;
-
-    // Re-determine and apply the correct speed for the new URL
     getCurrentTabAndApplySpeed();
   }
 }
 
 // Listen for URL changes using various methods
 function setupUrlChangeListeners(): void {
-  // Method 1: Listen for popstate (back/forward navigation)
   window.addEventListener("popstate", handleUrlChange);
 
-  // Method 2: Listen for pushstate and replacestate (programmatic navigation)
   const originalPushState = history.pushState;
   const originalReplaceState = history.replaceState;
   history.pushState = function (
     data: any,
     title: string,
-    url?: string | URL | null
+    url?: string | URL | null,
   ) {
     originalPushState.call(history, data, title, url);
     setTimeout(handleUrlChange, 100);
@@ -817,15 +841,14 @@ function setupUrlChangeListeners(): void {
   history.replaceState = function (
     data: any,
     title: string,
-    url?: string | URL | null
+    url?: string | URL | null,
   ) {
     originalReplaceState.call(history, data, title, url);
     setTimeout(handleUrlChange, 100);
   };
 
-  // Method 3: Periodic check as fallback
-  setInterval(handleUrlChange, 2000);
+  // Periodic check as fallback (tracked for cleanup)
+  urlCheckInterval = window.setInterval(handleUrlChange, 2000);
 }
 
-// Start observing URL changes
 setupUrlChangeListeners();
