@@ -89,7 +89,7 @@ For detailed information, see [PRIVACY.md](PRIVACY.md)
 
 ## ⚖️ Terms of Service
 
-By using SpeedyVideo, you agree to the [Terms of Service](TERMS.md).
+By using SpeedyVideo, you agree to the Terms of Service
 
 **Important:**
 
@@ -178,7 +178,6 @@ SpeedyVideo was created by passionate developers who love faster video playback!
 
 - **GitHub Issues**: [Report bugs or request features](https://github.com/REDLANTERNDEV/speedyvideo/issues)
 - **Privacy Concerns**: See [PRIVACY.md](PRIVACY.md)
-- **Legal Questions**: See [TERMS.md](TERMS.md)
 
 ---
 
