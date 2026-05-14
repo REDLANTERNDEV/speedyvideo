@@ -1,4 +1,22 @@
 // Centralized Speed Manager for systematic speed control
+const MEDIA_COMMAND_TYPE = "SPEEDYVIDEO_MEDIA_COMMAND";
+const MEDIA_COMMAND_SOURCE = "speedyvideo";
+
+type MediaCommand =
+  | { command: "set-speed"; speed: number }
+  | { command: "disable" };
+
+function postMediaCommand(command: MediaCommand): void {
+  window.postMessage(
+    {
+      type: MEDIA_COMMAND_TYPE,
+      source: MEDIA_COMMAND_SOURCE,
+      ...command,
+    },
+    "*",
+  );
+}
+
 class SpeedManager {
   private currentSpeed: number = 1.0;
   private currentSource: string = "global";
@@ -20,7 +38,12 @@ class SpeedManager {
     this.currentSpeed = speed;
     this.currentSource = source;
     this.sessionState.lastAppliedSpeed = speed;
-    this.applyToAllMedia();
+    if (this.isEnabled) {
+      postMediaCommand({ command: "set-speed", speed });
+      this.applyToAllMedia();
+    } else {
+      postMediaCommand({ command: "disable" });
+    }
     // Only save essential state, no personal browsing data
     this.saveMinimalState();
   }
@@ -45,6 +68,7 @@ class SpeedManager {
 
   private resetAllMedia() {
     const mediaElements = findAllMediaElements(document);
+    postMediaCommand({ command: "disable" });
     this.isApplyingSpeed = true;
     mediaElements.forEach((media) => {
       media.playbackRate = 1.0;
@@ -65,6 +89,8 @@ class SpeedManager {
   }
 
   private applyToAllMedia() {
+    if (!this.isEnabled) return;
+
     const mediaElements = findAllMediaElements(document);
 
     this.isApplyingSpeed = true;

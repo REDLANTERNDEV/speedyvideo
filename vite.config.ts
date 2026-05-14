@@ -16,6 +16,7 @@ export default defineConfig({
         main: "index.html",
         background: "src/background.ts",
         content: "src/content.ts",
+        mediaPageHook: "src/mediaPageHook.ts",
         popup: "src/popup.tsx",
       },
       output: {

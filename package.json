@@ -1,7 +1,7 @@
 {
   "name": "speedyvideo",
   "private": false,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A Chrome extension to control video playback speed on any website",
   "author": "SpeedyVideo Contributors",
   "license": "MIT",
@@ -28,6 +28,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^9.39.2",
+    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^16.5.0",

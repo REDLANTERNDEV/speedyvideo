@@ -1,6 +1,6 @@
 {
   "name": "SpeedyVideo - Video Speed Controller",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "manifest_version": 3,
   "description": "Control video playback speed on any site with an easy interface.",
   "author": "SpeedyVideo Contributors",
@@ -11,6 +11,13 @@
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["mediaPageHook.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    },
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
