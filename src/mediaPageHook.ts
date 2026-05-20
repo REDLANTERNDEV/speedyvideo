@@ -19,11 +19,27 @@ let currentSpeed = 1.0;
 let isEnabled = false;
 let isApplying = false;
 const watchedMedia = new WeakSet<HTMLMediaElement>();
-const observedRoots = new WeakSet<Document | ShadowRoot>();
-const activeObservers: MutationObserver[] = [];
 
 function isMediaElement(value: unknown): value is HTMLMediaElement {
-  return value instanceof HTMLMediaElement;
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as {
+    nodeName?: unknown;
+    addEventListener?: unknown;
+  };
+  const nodeName =
+    typeof candidate.nodeName === "string"
+      ? candidate.nodeName.toUpperCase()
+      : "";
+
+  return (
+    (nodeName === "AUDIO" || nodeName === "VIDEO") &&
+    typeof candidate.addEventListener === "function" &&
+    "defaultPlaybackRate" in value &&
+    "playbackRate" in value
+  );
 }
 
 function normalizeSpeed(speed: unknown): number {
@@ -149,62 +165,6 @@ function resetExistingMedia(): void {
   findMedia(document).forEach(resetRate);
 }
 
-function patchCreateElement(): void {
-  const createElementDescriptor = Object.getOwnPropertyDescriptor(
-    Document.prototype,
-    "createElement",
-  );
-  const originalCreateElement = createElementDescriptor?.value as
-    | typeof Document.prototype.createElement
-    | undefined;
-
-  if (!originalCreateElement) return;
-
-  Document.prototype.createElement = function createElement(
-    this: Document,
-    tagName: string,
-    options?: ElementCreationOptions,
-  ): HTMLElement {
-    const element = originalCreateElement.call(this, tagName, options);
-
-    if (isMediaElement(element)) {
-      watchMedia(element);
-    }
-
-    return element;
-  };
-
-  const createElementNSDescriptor = Object.getOwnPropertyDescriptor(
-    Document.prototype,
-    "createElementNS",
-  );
-  const originalCreateElementNS = createElementNSDescriptor?.value as
-    | typeof Document.prototype.createElementNS
-    | undefined;
-
-  if (!originalCreateElementNS) return;
-
-  Document.prototype.createElementNS = function createElementNS(
-    this: Document,
-    namespaceURI: string | null,
-    qualifiedName: string,
-    options?: ElementCreationOptions,
-  ): Element {
-    const element = originalCreateElementNS.call(
-      this,
-      namespaceURI,
-      qualifiedName,
-      options,
-    );
-
-    if (isMediaElement(element)) {
-      watchMedia(element);
-    }
-
-    return element;
-  } as typeof Document.prototype.createElementNS;
-}
-
 function patchMediaPrototype(): void {
   const playbackDescriptor = Object.getOwnPropertyDescriptor(
     HTMLMediaElement.prototype,
@@ -254,9 +214,21 @@ function patchMediaPrototype(): void {
 
   if (originalPlay) {
     HTMLMediaElement.prototype.play = function play(): Promise<void> {
-      watchMedia(this);
-      applyRate(this);
-      return originalPlay.call(this);
+      if (isMediaElement(this)) {
+        watchMedia(this);
+        applyRate(this);
+      }
+
+      const result = originalPlay.call(this);
+
+      if (isMediaElement(this)) {
+        void result.then(
+          () => applyRate(this),
+          () => applyRate(this),
+        );
+      }
+
+      return result;
     };
   }
 
@@ -270,67 +242,13 @@ function patchMediaPrototype(): void {
 
   if (originalLoad) {
     HTMLMediaElement.prototype.load = function load(): void {
-      watchMedia(this);
-      applyRate(this);
+      if (isMediaElement(this)) {
+        watchMedia(this);
+        applyRate(this);
+      }
+
       return originalLoad.call(this);
     };
-  }
-}
-
-function patchAttachShadow(): void {
-  const attachShadowDescriptor = Object.getOwnPropertyDescriptor(
-    Element.prototype,
-    "attachShadow",
-  );
-  const originalAttachShadow = attachShadowDescriptor?.value as
-    | typeof Element.prototype.attachShadow
-    | undefined;
-
-  if (!originalAttachShadow) return;
-
-  Element.prototype.attachShadow = function attachShadow(
-    init: ShadowRootInit,
-  ): ShadowRoot {
-    const shadowRoot = originalAttachShadow.call(this, init);
-    observeRoot(shadowRoot);
-    return shadowRoot;
-  };
-}
-
-function observeRoot(root: Document | ShadowRoot): void {
-  if (observedRoots.has(root)) return;
-
-  observedRoots.add(root);
-
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node instanceof Element) {
-          findMedia(node).forEach(watchMedia);
-          if (node.shadowRoot) {
-            observeRoot(node.shadowRoot);
-          }
-        }
-      });
-    });
-  });
-  activeObservers.push(observer);
-
-  const attach = () => {
-    const target = root instanceof Document ? root.documentElement : root;
-    if (!target) return;
-
-    observer.observe(target, {
-      childList: true,
-      subtree: true,
-    });
-    findMedia(root).forEach(watchMedia);
-  };
-
-  if (root instanceof Document && !root.documentElement) {
-    document.addEventListener("DOMContentLoaded", attach, { once: true });
-  } else {
-    attach();
   }
 }
 
@@ -368,7 +286,4 @@ window.addEventListener("message", (event) => {
   handleCommand(event.data);
 });
 
-patchCreateElement();
 patchMediaPrototype();
-patchAttachShadow();
-observeRoot(document);
