@@ -1,6 +1,6 @@
 {
   "name": "SpeedyVideo - Video Speed Controller",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "manifest_version": 3,
   "description": "Control video playback speed on any site with an easy interface.",
   "author": "SpeedyVideo Contributors",
@@ -12,7 +12,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["*://soundcloud.com/*", "*://*.soundcloud.com/*"],
       "js": ["mediaPageHook.js"],
       "run_at": "document_start",
       "all_frames": true,

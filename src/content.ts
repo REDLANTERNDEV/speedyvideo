@@ -1,12 +1,41 @@
 // Centralized Speed Manager for systematic speed control
 const MEDIA_COMMAND_TYPE = "SPEEDYVIDEO_MEDIA_COMMAND";
 const MEDIA_COMMAND_SOURCE = "speedyvideo";
+const MEDIA_HOOK_HOSTNAMES = new Set(["soundcloud.com", "w.soundcloud.com"]);
 
 type MediaCommand =
   | { command: "set-speed"; speed: number }
   | { command: "disable" };
 
+type DomainSpeedRule = {
+  domain: string;
+  speed: number;
+};
+
+type StorageResult = Record<string, unknown> & {
+  extensionState?: unknown;
+  selectedSpeed?: unknown;
+  domainSpeeds?: unknown;
+  websitesAddedToUrlConditionsExclusion?: unknown;
+  blacklistDomains?: unknown;
+};
+
+type CurrentTabResponse = {
+  tabId?: number | null;
+};
+
+type RuntimeMessage =
+  | { type: "UPDATE_SPEED"; speed?: unknown; source?: unknown }
+  | { type: "GET_CURRENT_SPEED" }
+  | { type: "DISABLE_SPEEDYVIDEO" }
+  | { type: "ENABLE_SPEEDYVIDEO" }
+  | { type: "CLEANUP_LEGACY_DATA" };
+
 function postMediaCommand(command: MediaCommand): void {
+  if (!isMediaHookAllowedForCurrentHostname()) {
+    return;
+  }
+
   window.postMessage(
     {
       type: MEDIA_COMMAND_TYPE,
@@ -15,6 +44,87 @@ function postMediaCommand(command: MediaCommand): void {
     },
     "*",
   );
+}
+
+function isMediaHookAllowedForCurrentHostname(): boolean {
+  const hostname = window.location.hostname.toLowerCase();
+  return (
+    MEDIA_HOOK_HOSTNAMES.has(hostname) || hostname.endsWith(".soundcloud.com")
+  );
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function getNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+}
+
+function getStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function getDomain(value: unknown): string | undefined {
+  if (!isObjectRecord(value)) return undefined;
+  return getString(value.domain);
+}
+
+function getDomainSpeedRule(value: unknown): DomainSpeedRule | null {
+  if (!isObjectRecord(value)) return null;
+
+  const domain = getString(value.domain);
+  const speed = getNumber(value.speed);
+
+  if (!domain || speed === undefined) {
+    return null;
+  }
+
+  return { domain, speed };
+}
+
+function isRuntimeMessage(value: unknown): value is RuntimeMessage {
+  if (!isObjectRecord(value) || typeof value.type !== "string") {
+    return false;
+  }
+
+  return [
+    "UPDATE_SPEED",
+    "GET_CURRENT_SPEED",
+    "DISABLE_SPEEDYVIDEO",
+    "ENABLE_SPEEDYVIDEO",
+    "CLEANUP_LEGACY_DATA",
+  ].includes(value.type);
+}
+
+function getCurrentTabResponse(value: unknown): CurrentTabResponse | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const tabId = getNumber(value.tabId);
+  return { tabId: tabId ?? null };
+}
+
+function hasErrorMessage(value: unknown, text: string): boolean {
+  if (!isObjectRecord(value)) return false;
+  const message = getString(value.message);
+  return message ? message.includes(text) : false;
 }
 
 class SpeedManager {
@@ -133,7 +243,7 @@ class SpeedManager {
     try {
       sessionStorage.setItem("sv_session_speed", this.currentSpeed.toString());
       sessionStorage.setItem("sv_session_source", this.currentSource);
-    } catch (error) {
+    } catch {
       // Fallback if sessionStorage is not available
     }
   }
@@ -147,7 +257,9 @@ class SpeedManager {
         this.currentSpeed = parseFloat(sessionSpeed);
         this.currentSource = sessionSource;
       }
-    } catch (error) {}
+    } catch {
+      // Ignore unavailable sessionStorage.
+    }
   }
 
   // Clean up when tab is closed or navigated away
@@ -155,7 +267,7 @@ class SpeedManager {
     try {
       sessionStorage.removeItem("sv_session_speed");
       sessionStorage.removeItem("sv_session_source");
-    } catch (error) {
+    } catch {
       // Silent cleanup failure - not critical
     }
   }
@@ -168,7 +280,6 @@ let mediaObserver: MutationObserver | null = null;
 let intersectionObserver: IntersectionObserver | null = null;
 let scrollTimeoutId: number | undefined;
 let debounceTimerId: number | undefined;
-let connectionRetryCount = 0;
 const MAX_RETRY_COUNT = 3;
 let extensionContextLost = false;
 let lastVideoCount = 0;
@@ -178,7 +289,7 @@ let scrollHandler: (() => void) | null = null;
 
 // Global error handler for unhandled extension context errors
 window.addEventListener("error", (event) => {
-  if (event.error?.message?.includes("Extension context invalidated")) {
+  if (hasErrorMessage(event.error, "Extension context invalidated")) {
     extensionContextLost = true;
     switchToStandaloneMode();
     event.preventDefault();
@@ -215,7 +326,7 @@ const DEFAULT_EXCLUSION_PATTERNS = [
 ];
 
 // Helper function to check if current domain is blacklisted
-function isCurrentDomainBlacklisted(blacklistDomains: any[]): boolean {
+function isCurrentDomainBlacklisted(blacklistDomains: unknown): boolean {
   if (!Array.isArray(blacklistDomains) || blacklistDomains.length === 0) {
     return false;
   }
@@ -223,9 +334,10 @@ function isCurrentDomainBlacklisted(blacklistDomains: any[]): boolean {
   const currentHostname = window.location.hostname.toLowerCase();
 
   for (const item of blacklistDomains) {
-    if (!item || typeof item.domain !== "string") continue;
+    const domain = getDomain(item);
+    if (!domain) continue;
 
-    const blacklistedDomain = item.domain.toLowerCase();
+    const blacklistedDomain = domain.toLowerCase();
 
     if (currentHostname === blacklistedDomain) {
       return true;
@@ -252,14 +364,17 @@ function isCurrentDomainBlacklisted(blacklistDomains: any[]): boolean {
 
 // Helper function to check URL exclusions with domain rule priority
 function shouldExcludeUrl(
-  exclusionPatterns: string[],
+  exclusionPatterns: unknown,
   hasUserDomainRule: boolean = false,
 ): boolean {
   if (hasUserDomainRule) {
     return false;
   }
 
-  const patterns = exclusionPatterns || DEFAULT_EXCLUSION_PATTERNS;
+  const customPatterns = Array.isArray(exclusionPatterns)
+    ? getStringArray(exclusionPatterns)
+    : undefined;
+  const patterns = customPatterns ?? DEFAULT_EXCLUSION_PATTERNS;
   const currentUrlLower = window.location.href.toLowerCase();
 
   for (const pattern of patterns) {
@@ -301,7 +416,7 @@ function findAllMediaElements(root: Document | ShadowRoot): HTMLMediaElement[] {
     mediaElements = Array.from(
       root.querySelectorAll<HTMLMediaElement>(videoSelectors),
     );
-  } catch (e) {
+  } catch {
     // Silent failure
   }
 
@@ -550,7 +665,7 @@ function isInfiniteScrollSite(): boolean {
 
 // Simplified systematic speed determination (no persistent overrides)
 function determineAndApplySpeed(
-  result: any,
+  result: StorageResult,
   tabId: number | null = null,
 ): { speed: number; source: string } {
   let speed = 1.0;
@@ -572,8 +687,9 @@ function determineAndApplySpeed(
   }
 
   // Priority 3: Pinned speed (highest persistent priority)
-  if (tabId && result[`pinnedSpeed_${tabId}`] !== undefined) {
-    speed = parseFloat(result[`pinnedSpeed_${tabId}`]);
+  const pinnedSpeed = tabId ? getNumber(result[`pinnedSpeed_${tabId}`]) : undefined;
+  if (pinnedSpeed !== undefined) {
+    speed = pinnedSpeed;
     source = "pinned";
     speedManager.setDomainRuleActive(false);
     return { speed, source };
@@ -582,11 +698,13 @@ function determineAndApplySpeed(
   // Priority 4: Domain rule (check if user disabled it for this tab)
   const hostname = window.location.hostname.toLowerCase();
   const domainRule = findDomainRuleForHostname(
-    result.domainSpeeds || [],
+    result.domainSpeeds,
     hostname,
   );
 
-  const domainRuleDisabled = tabId && result[`domainRuleDisabled_${tabId}`];
+  const domainRuleDisabled = Boolean(
+    tabId ? result[`domainRuleDisabled_${tabId}`] : false,
+  );
 
   if (domainRule && !domainRuleDisabled) {
     speed = domainRule.speed;
@@ -596,14 +714,16 @@ function determineAndApplySpeed(
   }
 
   // Priority 5: URL exclusions
-  if (shouldExcludeUrl(result.websitesAddedToUrlConditionsExclusion, false)) {
+  if (
+    shouldExcludeUrl(result.websitesAddedToUrlConditionsExclusion, false)
+  ) {
     speedManager.setEnabled(false);
     speedManager.setDomainRuleActive(false);
     return { speed: 1.0, source: "excluded" };
   }
 
   // Priority 6: Global speed (fallback)
-  speed = result.selectedSpeed ? parseFloat(result.selectedSpeed) : 1.0;
+  speed = getNumber(result.selectedSpeed) ?? 1.0;
   speedManager.setDomainRuleActive(false);
 
   return { speed, source };
@@ -618,17 +738,17 @@ chrome.storage.local.get(
     "websitesAddedToUrlConditionsExclusion",
     "blacklistDomains",
   ],
-  (result) => {
+  (result: StorageResult) => {
     speedManager.loadMinimalState();
 
     safeRuntimeMessage({ type: "GET_CURRENT_TAB" }, (response) => {
-      const tabId = response?.tabId || null;
+      const tabId = getNumber(response?.tabId) ?? null;
 
       if (tabId) {
         currentTabId = tabId;
         chrome.storage.local.get(
           [`pinnedSpeed_${tabId}`, `domainRuleDisabled_${tabId}`],
-          (tabResult) => {
+          (tabResult: StorageResult) => {
             const combinedResult = { ...result, ...tabResult };
             const { speed, source } = determineAndApplySpeed(
               combinedResult,
@@ -659,16 +779,20 @@ chrome.storage.local.get(
   },
 );
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  if (!isRuntimeMessage(message)) {
+    return false;
+  }
+
   if (message.type === "UPDATE_SPEED") {
-    chrome.storage.local.get(["extensionState"], (result) => {
+    chrome.storage.local.get(["extensionState"], (result: StorageResult) => {
       if (result.extensionState === false) {
         sendResponse({ status: "blocked - extension disabled" });
         return;
       }
 
-      const speed = message.speed ?? 1;
-      const source = message.source ?? "manual";
+      const speed = getNumber(message.speed) ?? 1;
+      const source = getString(message.source) ?? "manual";
 
       speedManager.setSpeed(speed, source);
       initializePlaybackRate(speed, source);
@@ -700,7 +824,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     try {
       localStorage.removeItem("speedyVideoLastSpeed");
       localStorage.removeItem("speedyVideoLastSource");
-    } catch (error) {}
+    } catch {
+      // Ignore unavailable localStorage during legacy cleanup.
+    }
     sendResponse({ status: "cleanup completed" });
   }
 
@@ -709,8 +835,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 // Helper function to safely send messages with retry
 function safeRuntimeMessage(
-  message: any,
-  callback?: (response: any) => void,
+  message: { type: "GET_CURRENT_TAB" },
+  callback?: (response: CurrentTabResponse | null) => void,
   retryCount = 0,
 ) {
   if (extensionContextLost) {
@@ -733,7 +859,6 @@ function safeRuntimeMessage(
         }
 
         if (retryCount < MAX_RETRY_COUNT) {
-          connectionRetryCount++;
           setTimeout(
             () => {
               safeRuntimeMessage(message, callback, retryCount + 1);
@@ -749,12 +874,11 @@ function safeRuntimeMessage(
         return;
       }
 
-      connectionRetryCount = 0;
       if (callback) {
-        callback(response);
+        callback(getCurrentTabResponse(response));
       }
     });
-  } catch (error) {
+  } catch {
     extensionContextLost = true;
     switchToStandaloneMode();
     if (callback) {
@@ -764,15 +888,21 @@ function safeRuntimeMessage(
 }
 
 // Helper function to find domain rule for hostname (same logic as popup)
-function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
+function findDomainRuleForHostname(
+  domainSpeeds: unknown,
+  hostname: string,
+): DomainSpeedRule | null {
   if (!Array.isArray(domainSpeeds) || domainSpeeds.length === 0) {
     return null;
   }
 
   const hostnameNormalized = hostname.toLowerCase();
+  const rules = domainSpeeds
+    .map(getDomainSpeedRule)
+    .filter((rule): rule is DomainSpeedRule => rule !== null);
 
   // Try exact match first
-  for (const rule of domainSpeeds) {
+  for (const rule of rules) {
     const ruleHostname = rule.domain.toLowerCase();
     if (hostnameNormalized === ruleHostname) {
       return rule;
@@ -780,7 +910,7 @@ function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
   }
 
   // Try www variations
-  for (const rule of domainSpeeds) {
+  for (const rule of rules) {
     const ruleHostname = rule.domain.toLowerCase();
     const hostnameNoWww = hostnameNormalized.startsWith("www.")
       ? hostnameNormalized.substring(4)
@@ -805,10 +935,8 @@ function findDomainRuleForHostname(domainSpeeds: any[], hostname: string) {
 function getCurrentTabAndApplySpeed(): void {
   safeRuntimeMessage({ type: "GET_CURRENT_TAB" }, (response) => {
     if (!response) {
-      chrome.storage.local.get(["selectedSpeed"], (result) => {
-        const speed = (result.selectedSpeed as string)
-          ? parseFloat(result.selectedSpeed as string)
-          : 1.0;
+      chrome.storage.local.get(["selectedSpeed"], (result: StorageResult) => {
+        const speed = getNumber(result.selectedSpeed) ?? 1.0;
         initializePlaybackRate(speed, "fallback");
         observeMediaChanges(speed, "fallback");
       });
@@ -827,7 +955,7 @@ function getCurrentTabAndApplySpeed(): void {
           "blacklistDomains",
           "websitesAddedToUrlConditionsExclusion",
         ],
-        (result) => {
+        (result: StorageResult) => {
           const { speed, source } = determineAndApplySpeed(
             result,
             currentTabId,
@@ -853,23 +981,23 @@ function handleUrlChange(): void {
 function setupUrlChangeListeners(): void {
   window.addEventListener("popstate", handleUrlChange);
 
-  const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
+  const originalPushState = history.pushState.bind(history);
+  const originalReplaceState = history.replaceState.bind(history);
   history.pushState = function (
-    data: any,
+    data: unknown,
     title: string,
     url?: string | URL | null,
   ) {
-    originalPushState.call(history, data, title, url);
+    originalPushState(data, title, url);
     setTimeout(handleUrlChange, 100);
   };
 
   history.replaceState = function (
-    data: any,
+    data: unknown,
     title: string,
     url?: string | URL | null,
   ) {
-    originalReplaceState.call(history, data, title, url);
+    originalReplaceState(data, title, url);
     setTimeout(handleUrlChange, 100);
   };
 
