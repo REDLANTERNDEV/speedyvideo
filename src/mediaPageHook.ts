@@ -14,11 +14,14 @@ const MEDIA_EVENTS = [
   "playing",
   "ratechange",
 ] as const;
+const MEDIA_CLEANUP_EVENTS = ["abort", "emptied", "ended"] as const;
+const MAX_TRACKED_MEDIA = 32;
 
 let currentSpeed = 1.0;
 let isEnabled = false;
 let isApplying = false;
 const watchedMedia = new WeakSet<HTMLMediaElement>();
+const trackedMedia = new Set<HTMLMediaElement>();
 
 function isMediaElement(value: unknown): value is HTMLMediaElement {
   if (!value || typeof value !== "object") {
@@ -104,7 +107,27 @@ function resetRate(media: HTMLMediaElement): void {
   }
 }
 
+function rememberMedia(media: HTMLMediaElement): void {
+  if (trackedMedia.has(media)) return;
+
+  if (trackedMedia.size >= MAX_TRACKED_MEDIA) {
+    const oldestMedia = trackedMedia.values().next().value;
+
+    if (oldestMedia) {
+      trackedMedia.delete(oldestMedia);
+    }
+  }
+
+  trackedMedia.add(media);
+}
+
+function forgetMedia(media: HTMLMediaElement): void {
+  trackedMedia.delete(media);
+}
+
 function watchMedia(media: HTMLMediaElement): void {
+  rememberMedia(media);
+
   if (watchedMedia.has(media)) {
     applyRate(media);
     return;
@@ -116,8 +139,19 @@ function watchMedia(media: HTMLMediaElement): void {
     media.addEventListener(
       eventName,
       () => {
+        rememberMedia(media);
         if (isApplying || !isEnabled) return;
         applyRate(media);
+      },
+      true,
+    );
+  });
+
+  MEDIA_CLEANUP_EVENTS.forEach((eventName) => {
+    media.addEventListener(
+      eventName,
+      () => {
+        forgetMedia(media);
       },
       true,
     );
@@ -161,8 +195,15 @@ function watchExistingMedia(): void {
   findMedia(document).forEach(watchMedia);
 }
 
-function resetExistingMedia(): void {
+function applyRateToTrackedMedia(): void {
+  trackedMedia.forEach((media) => {
+    applyRate(media);
+  });
+}
+
+function resetKnownMedia(): void {
   findMedia(document).forEach(resetRate);
+  trackedMedia.forEach(resetRate);
 }
 
 function patchMediaPrototype(): void {
@@ -256,7 +297,7 @@ function handleCommand(message: SpeedyVideoMediaMessage): void {
   if (message.command === "disable") {
     isEnabled = false;
     currentSpeed = 1.0;
-    resetExistingMedia();
+    resetKnownMedia();
     return;
   }
 
@@ -264,6 +305,7 @@ function handleCommand(message: SpeedyVideoMediaMessage): void {
     isEnabled = true;
     currentSpeed = normalizeSpeed(message.speed);
     watchExistingMedia();
+    applyRateToTrackedMedia();
   }
 }
 
