@@ -8,13 +8,16 @@ type SpeedyVideoMediaMessage = {
 const MESSAGE_TYPE = "SPEEDYVIDEO_MEDIA_COMMAND";
 const MESSAGE_SOURCE = "speedyvideo";
 const MEDIA_EVENTS = [
+  "loadstart",
   "loadedmetadata",
+  "durationchange",
+  "emptied",
   "canplay",
   "play",
   "playing",
   "ratechange",
 ] as const;
-const MEDIA_CLEANUP_EVENTS = ["abort", "emptied", "ended"] as const;
+const MEDIA_CLEANUP_EVENTS = [] as const;
 const MAX_TRACKED_MEDIA = 32;
 
 let currentSpeed = 1.0;

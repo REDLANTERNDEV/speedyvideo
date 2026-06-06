@@ -15,7 +15,8 @@
     "build": "tsc -b && vite build",
     "build:prod": "tsc -b && vite build --mode production",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:soundcloud": "node tests/soundcloud-speed-fix.test.mjs"
   },
   "dependencies": {
     "@types/chrome": "^0.1.37",

@@ -950,6 +950,7 @@ function getCurrentTabAndApplySpeed(): void {
         [
           "extensionState",
           `pinnedSpeed_${currentTabId}`,
+          `domainRuleDisabled_${currentTabId}`,
           "selectedSpeed",
           "domainSpeeds",
           "blacklistDomains",

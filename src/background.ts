@@ -165,6 +165,7 @@ async function cleanupOrphanedPinnedSpeeds() {
     const allData = await chrome.storage.local.get(null);
     const pinnedSpeedKeys: string[] = [];
     const activeDomainRuleKeys: string[] = [];
+    const domainRuleDisabledKeys: string[] = [];
     const tabDomainOverrideKeys: string[] = [];
 
     // Find all tab-specific keys
@@ -173,6 +174,8 @@ async function cleanupOrphanedPinnedSpeeds() {
         pinnedSpeedKeys.push(key);
       } else if (key.startsWith("activeDomainRule_")) {
         activeDomainRuleKeys.push(key);
+      } else if (key.startsWith("domainRuleDisabled_")) {
+        domainRuleDisabledKeys.push(key);
       } else if (key.startsWith("tabDomainOverrides_")) {
         tabDomainOverrideKeys.push(key);
       }
@@ -196,6 +199,13 @@ async function cleanupOrphanedPinnedSpeeds() {
 
     activeDomainRuleKeys.forEach((key) => {
       const tabId = key.replace("activeDomainRule_", "");
+      if (!currentTabIds.has(tabId)) {
+        orphanedKeys.push(key);
+      }
+    });
+
+    domainRuleDisabledKeys.forEach((key) => {
+      const tabId = key.replace("domainRuleDisabled_", "");
       if (!currentTabIds.has(tabId)) {
         orphanedKeys.push(key);
       }
@@ -395,7 +405,9 @@ function determineSpeedForTab(
       hostname
     );
 
-    if (domainRule) {
+    const domainRuleDisabled = Boolean(result[`domainRuleDisabled_${tabId}`]);
+
+    if (domainRule && !domainRuleDisabled) {
       return {
         speed: domainRule.speed,
         speedSource: "domain rule",
@@ -424,6 +436,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           "extensionState",
           "selectedSpeed",
           `pinnedSpeed_${tabId}`,
+          `domainRuleDisabled_${tabId}`,
           "domainSpeeds",
           "blacklistDomains",
         ],
@@ -508,7 +521,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
         ) {
           // Check if this tab has a pinned speed or domain rule - if so, don't update it
           chrome.storage.local.get(
-            [`pinnedSpeed_${tab.id}`, "domainSpeeds", "blacklistDomains"],
+            [
+              `pinnedSpeed_${tab.id}`,
+              `domainRuleDisabled_${tab.id}`,
+              "domainSpeeds",
+              "blacklistDomains",
+            ],
             (result) => {
               if (result[`pinnedSpeed_${tab.id}`] !== undefined) {
                 console.log(
@@ -538,7 +556,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
                 hostname
               );
 
-              if (domainRule) {
+              const domainRuleDisabled = Boolean(
+                result[`domainRuleDisabled_${tab.id}`]
+              );
+
+              if (domainRule && !domainRuleDisabled) {
                 console.log(
                   `[SpeedyVideo Background] Skipping tab ID: ${tab.id} - has active domain rule (${domainRule.speed}x for ${hostname})`
                 );
@@ -550,7 +572,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
               );
               chrome.tabs.sendMessage(
                 tab.id!,
-                { type: "UPDATE_SPEED", speed: newSpeed },
+                { type: "UPDATE_SPEED", speed: newSpeed, source: "global" },
                 () => {
                   if (chrome.runtime.lastError) {
                     const errorMessage = chrome.runtime.lastError.message ?? "";
@@ -584,18 +606,22 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.tabs.onRemoved.addListener((tabId, _removeInfo) => {
   const pinnedKey = `pinnedSpeed_${tabId}`;
   const activeDomainRuleKey = `activeDomainRule_${tabId}`;
-  chrome.storage.local.remove([pinnedKey, activeDomainRuleKey], () => {
-    if (chrome.runtime.lastError) {
-      console.warn(
-        `[SpeedyVideo Background] Error removing data for tab ${tabId}:`,
-        chrome.runtime.lastError.message
-      );
-    } else {
-      console.log(
-        `[SpeedyVideo Background] Removed data for closed tab ${tabId}.`
-      );
+  const domainRuleDisabledKey = `domainRuleDisabled_${tabId}`;
+  chrome.storage.local.remove(
+    [pinnedKey, activeDomainRuleKey, domainRuleDisabledKey],
+    () => {
+      if (chrome.runtime.lastError) {
+        console.warn(
+          `[SpeedyVideo Background] Error removing data for tab ${tabId}:`,
+          chrome.runtime.lastError.message
+        );
+      } else {
+        console.log(
+          `[SpeedyVideo Background] Removed data for closed tab ${tabId}.`
+        );
+      }
     }
-  });
+  );
 });
 
 // Enhanced cleanup on browser startup
